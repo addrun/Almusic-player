@@ -8,7 +8,7 @@
 
 **桌面音乐播放器 · 酷狗云端歌单同步 · 多音源播放 · 沉浸式歌词**
 
-[![Version](https://img.shields.io/badge/version-0.1.1-blue)](https://github.com/mysterious-shhr/Almusic-player)
+[![Version](https://img.shields.io/badge/version-0.1.2-blue)](https://github.com/mysterious-shhr/Almusic-player/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Vue](https://img.shields.io/badge/Vue_3.5-42b883?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript_5.9-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -118,7 +118,18 @@ Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-pla
 
 ## 下载与开发
 
-**当前源码版本为 0.1.1。** 文档和版本号不代表已上传 GitHub 或已生成安装包；请以 [GitHub 仓库](https://github.com/mysterious-shhr/Almusic-player) 和 [Releases](https://github.com/mysterious-shhr/Almusic-player/releases) 的实际内容为准。目前可按下面的命令运行或构建；上游安装包不包含本分支的新增功能。
+**当前版本为 0.1.2。** 从 [Releases](https://github.com/mysterious-shhr/Almusic-player/releases) 的 Assets 下载对应系统的 Almusic 安装包。发布流程在 Windows、macOS 和 Linux 构建环境生成安装包，检查应用资源的隐私与更新清单，再汇总发布；某个标签是否已完成构建，以该 Release 实际列出的文件及 [构建记录](https://github.com/mysterious-shhr/Almusic-player/actions/workflows/release.yml) 为准。
+
+| 系统 | 架构 | 下载文件 |
+| --- | --- | --- |
+| Windows | x64（大多数 Intel / AMD 电脑） | `Almusic-0.1.2-win-x64.exe` |
+| Windows | ia32（32 位） / ARM64 | 对应 `win-ia32.exe` / `win-arm64.exe` |
+| macOS | Intel x64 / Apple Silicon ARM64 | 对应 `mac-x64.dmg` / `mac-arm64.dmg`，也提供 ZIP |
+| Linux | x64 / ARM64 | 对应架构的 `.AppImage`、`.deb` 或 `.rpm` |
+
+`.blockmap` 和 `latest*.yml` 供自动更新使用，无需手动安装；`SHA256SUMS.txt` 用于核对下载文件。GitHub 自动生成的 Source code ZIP / tar.gz 是源码，不是安装包。Windows 和 macOS 安装包没有商业代码签名，macOS 没有 Apple 公证；系统可能提示未识别的发布者，下载时请核对本仓库和校验和。
+
+打包不包含本机账号、歌单缓存、安装备份、审计目录或环境凭据。跨平台构建和资源检查通过不能代替实际播放、真实账号或所有设备的功能验收；Windows 任务栏信息卡仍仅支持 x64。上游安装包不包含本分支的新增功能。
 
 开发建议使用 Node.js 22 LTS（至少 22.12）；构建工具也支持 Node.js 20.19 及以上的 20.x 版本。
 

@@ -17,6 +17,8 @@ await build({
   platform: 'node',
   format: 'cjs',
   target: 'node20',
+  // This suite simulates Windows APIs with fixtures on every CI operating system.
+  banner: { js: "Object.defineProperty(process, 'platform', { value: 'win32' });" },
   alias: {
     electron: resolve(directory, 'tests/helpers/taskbar-electron-fixture.ts'),
     '@/store': fixture,

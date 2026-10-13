@@ -1,6 +1,6 @@
 {
   "name": "almusic-player",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Almusic — desktop music player with Kugou sync and Windows taskbar controls",
   "author": "Almusic Player contributors",
   "main": "./out/main/index.js",
@@ -228,7 +228,9 @@
     "files": [
       "out/**/*",
       "resources/**/*",
-      "package.json"
+      "package.json",
+      "!out/**/*.map",
+      "!out/renderer/taskbar-native/**/*"
     ],
     "asarUnpack": [
       "resources/taskbar-native/**/*"

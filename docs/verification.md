@@ -1,5 +1,13 @@
 # 源码发布准备验证
 
+## 0.1.2 多平台安装包发布 — 2026-10-14
+
+干净源码目录使用官方 npm 锁文件安装依赖，Electron 生产构建与 11 组离线回归 151 项通过。新增发布资源校验 4 项、实际打包资源隐私夹具 18 项通过；任务栏套件使用模拟 Windows API，可在其他平台构建任务内运行，未调用真实账号或系统原生交互。
+
+GitHub Actions 从同一标签分别构建 Windows x64 / ia32 / ARM64、macOS x64 / ARM64、Linux x64 / ARM64。只有七个任务都通过打包、ASAR 与额外资源隐私检查、安装包清单与来源提交校验后才汇总发布；更新文件的 SHA512、文件尺寸及安装包 SHA256 会再次校验。发布内容不含未打包目录、构建诊断、隐私报告或本机数据。实际构建状态和安装包文件见 [构建记录](https://github.com/mysterious-shhr/Almusic-player/actions/workflows/release.yml) 与 [Releases](https://github.com/mysterious-shhr/Almusic-player/releases)。
+
+Windows / macOS 未签名，macOS 未公证；新增能力在其他平台的真实账号、播放及设备交互仍需实际使用验证。此前全量类型检查的既有诊断没有被此发布流程宣称为修复。
+
 ## 0.1.1 更名与图标维护 — 2026-10-13
 
 | 检查                      | 结果                                                     |

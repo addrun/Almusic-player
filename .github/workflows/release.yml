@@ -1,0 +1,136 @@
+name: Build and publish desktop installers
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build
+        required: true
+        default: v0.1.2
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: ${{ matrix.platform }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: windows, arch: x64, runner: windows-latest, flag: win }
+          - { platform: windows, arch: ia32, runner: windows-latest, flag: win }
+          - { platform: windows, arch: arm64, runner: windows-latest, flag: win }
+          - { platform: mac, arch: x64, runner: macos-15-intel, flag: mac }
+          - { platform: mac, arch: arm64, runner: macos-15, flag: mac }
+          - { platform: linux, arch: x64, runner: ubuntu-24.04, flag: linux }
+          - { platform: linux, arch: arm64, runner: ubuntu-24.04-arm, flag: linux }
+    env:
+      HUSKY: '0'
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify release tag and version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          node -e 'const p=require("./package.json"); if(process.env.RELEASE_TAG !== `v${p.version}` || !/^v\d+\.\d+\.\d+$/.test(process.env.RELEASE_TAG)) throw new Error("Tag/version mismatch");'
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+      - name: Install Linux package tools
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends rpm
+      - run: npm ci --no-audit --no-fund
+      - name: Run account-free regression tests
+        run: |
+          npm test
+          node --test scripts/test-release-artifacts.mjs
+          node scripts/test-packaged-privacy.mjs
+      - run: npm run build
+      - name: Package unsigned desktop app
+        run: npx --no-install electron-builder --${{ matrix.flag }} --${{ matrix.arch }} --publish never -c.directories.output=dist/${{ matrix.platform }}-${{ matrix.arch }}
+      - name: Audit packaged application
+        env:
+          TARGET_PLATFORM: ${{ matrix.platform }}
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          if [ "$TARGET_PLATFORM" = windows ]; then
+            unpacked="win-unpacked"
+            if [ "$TARGET_ARCH" != x64 ]; then unpacked="win-$TARGET_ARCH-unpacked"; fi
+            resources="dist/$TARGET_PLATFORM-$TARGET_ARCH/$unpacked/resources"
+          elif [ "$TARGET_PLATFORM" = mac ]; then
+            unpacked="mac"
+            if [ "$TARGET_ARCH" != x64 ]; then unpacked="mac-$TARGET_ARCH"; fi
+            resources="dist/$TARGET_PLATFORM-$TARGET_ARCH/$unpacked/Almusic.app/Contents/Resources"
+          else
+            unpacked="linux-unpacked"
+            if [ "$TARGET_ARCH" != x64 ]; then unpacked="linux-$TARGET_ARCH-unpacked"; fi
+            resources="dist/$TARGET_PLATFORM-$TARGET_ARCH/$unpacked/resources"
+          fi
+          node scripts/audit-packaged-app.mjs --root "$resources" --report "dist/packaged-audit-$TARGET_PLATFORM-$TARGET_ARCH.json"
+      - name: Stage only public release files
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: node scripts/release-artifacts.mjs stage --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --source dist/${{ matrix.platform }}-${{ matrix.arch }} --out dist/public/${{ matrix.platform }}-${{ matrix.arch }} --tag "$RELEASE_TAG" --commit "$(git rev-parse HEAD)"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/public/${{ matrix.platform }}-${{ matrix.arch }}/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: release-*
+          path: release-downloads
+          merge-multiple: true
+      - name: Verify builds and combine update metadata
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: node scripts/release-artifacts.mjs collect --source release-downloads --out release-assets --tag "$RELEASE_TAG" --commit "$(git rev-parse HEAD)"
+      - name: Publish verified assets to the existing tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "Almusic $RELEASE_TAG" --notes-file RELEASE_NOTES.md
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --latest
