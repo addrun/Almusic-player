@@ -1,0 +1,11 @@
+[
+  { "key": "eerieFontFamily", "type": "font", "label": "书法字体", "default": "KaiTi" },
+  { "type": "divider" },
+  { "key": "eerieLyricScale", "type": "slider", "label": "歌词缩放", "min": 50, "max": 200, "step": 10, "marks": ["小", "大"], "default": 100 },
+  { "key": "eerieFontWeight", "type": "slider", "label": "字体粗细", "min": 100, "max": 900, "step": 100, "marks": ["细", "粗"], "default": 700 },
+  { "type": "divider" },
+  { "key": "eerieMaxFontSize", "type": "slider", "label": "两端字号", "min": 24, "max": 80, "step": 2, "marks": ["小", "大"], "default": 48 },
+  { "key": "eerieMinFontSize", "type": "slider", "label": "中间字号", "min": 16, "max": 60, "step": 2, "marks": ["小", "大"], "default": 32 },
+  { "type": "divider" },
+  { "key": "eerieClimaxFontSize", "type": "slider", "label": "高潮重点词字号", "min": 40, "max": 160, "step": 4, "marks": ["小", "大"], "default": 100 }
+]

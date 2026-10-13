@@ -1,0 +1,31 @@
+{
+  "name": "newspaper",
+  "description": "报纸纹理素材 - 去饱和半透明",
+  "textures": [
+    {
+      "id": "newspaper-01",
+      "src": "assets/textures/newspaper/newspaper-01.png",
+      "duration": 500
+    },
+    {
+      "id": "newspaper-02",
+      "src": "assets/textures/newspaper/newspaper-02.png",
+      "duration": 500
+    },
+    {
+      "id": "newspaper-03",
+      "src": "assets/textures/newspaper/newspaper-03.png",
+      "duration": 500
+    },
+    {
+      "id": "newspaper-04",
+      "src": "assets/textures/newspaper/newspaper-04.png",
+      "duration": 500
+    },
+    {
+      "id": "newspaper-05",
+      "src": "assets/textures/newspaper/newspaper-05.png",
+      "duration": 500
+    }
+  ]
+}

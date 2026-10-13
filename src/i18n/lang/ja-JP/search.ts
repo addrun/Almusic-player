@@ -1,0 +1,45 @@
+export default {
+  title: {
+    hotSearch: '人気検索リスト',
+    searchList: '検索リスト',
+    searchHistory: '検索履歴'
+  },
+  button: {
+    clear: 'クリア',
+    back: '戻る',
+    playAll: 'リストを再生'
+  },
+  loading: {
+    more: '読み込み中...',
+    failed: '検索に失敗しました',
+    searching: '検索中...'
+  },
+  noMore: 'これ以上ありません',
+  error: {
+    searchFailed: '検索に失敗しました'
+  },
+  search: {
+    single: '楽曲',
+    album: 'アルバム',
+    playlist: 'プレイリスト',
+    mv: 'MV',
+    djradio: 'ラジオ',
+    bilibili: 'Bilibili'
+  },
+
+  history: '検索履歴',
+  hot: '人気検索',
+  suggestions: '検索候補',
+  filter: {
+    source: 'ソースフィルター',
+    all: 'すべて',
+    probing: 'ソース探測中',
+    probeProgress: '探測 {done}/{total}',
+    noSource: '利用可能なソースなし'
+  },
+  crossSearch: {
+    loading: 'クロスプラットフォーム検索中...',
+    results: 'クロスプラットフォーム結果',
+    failed: 'クロスプラットフォーム検索失敗'
+  }
+};

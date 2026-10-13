@@ -1,0 +1,1100 @@
+<template>
+  <n-drawer
+    v-model:show="isVisible"
+    height="100%"
+    placement="bottom"
+    :style="drawerBaseStyle"
+    :to="`#layout-main`"
+    :z-index="9998"
+  >
+    <!-- 背景层（用于图片模糊和明暗效果） -->
+    <div
+      v-if="
+        config.useCustomBackground && config.backgroundMode === 'image' && config.backgroundImage
+      "
+      class="background-layer"
+      :style="backgroundImageStyle"
+    ></div>
+    <div id="drawer-target" :class="[config.theme]" class="relative z-10">
+      <!-- 通用控件（左上关闭 + 右上设置/全屏） -->
+      <player-controls
+        :isFullScreen="isFullScreen"
+        @close="closeMusicFull"
+        @toggleFullscreen="toggleFullScreen"
+        :showStyleSwitch="false"
+      />
+
+      <div class="content-wrapper" :style="{ width: `${config.contentWidth}%` }">
+        <!-- 左侧：封面区域 -->
+        <div
+          v-if="!config.hideCover"
+          class="left-side"
+          :class="{ 'only-cover': config.hideLyrics }"
+        >
+          <div class="img-container" :style="coverTransition.blurStyle.value">
+            <cover3-d
+              ref="PicImgRef"
+              :src="coverTransition.displaySrc.value"
+              :loading="playMusic?.playLoading"
+              :max-tilt="12"
+              :scale="1.03"
+              :shine-intensity="0.25"
+            />
+            <div
+              v-if="coverTransition.overlaySrc.value"
+              class="cover-overlay"
+              :style="{ opacity: coverTransition.overlayOpacity.value }"
+            >
+              <img :src="coverTransition.overlaySrc.value" class="cover-overlay-img" />
+            </div>
+          </div>
+          <div class="music-info" :style="coverTransition.blurStyle.value">
+            <div class="music-content-name" v-html="playMusic.name"></div>
+            <div class="music-content-singer">
+              <n-ellipsis
+                class="text-ellipsis"
+                line-clamp="2"
+                :tooltip="{
+                  contentStyle: { maxWidth: '600px' },
+                  zIndex: 99999
+                }"
+              >
+                <span
+                  v-for="(item, index) in artistList"
+                  :key="index"
+                  class="cursor-pointer hover:text-[var(--accent-color)]"
+                  @click="handleArtistClick(item.id)"
+                >
+                  {{ item.name }}
+                  {{ index < artistList.length - 1 ? ' / ' : '' }}
+                </span>
+              </n-ellipsis>
+            </div>
+            <simple-play-bar
+              v-if="!config.hideMiniPlayBar"
+              class="mt-4"
+              :pure-mode-enabled="config.pureModeEnabled"
+              :isDark="textColors.theme === 'dark'"
+            />
+          </div>
+        </div>
+
+        <!-- 右侧：歌词区域 -->
+        <div
+          class="right-side"
+          :class="{
+            center: config.centerLyrics,
+            hide: config.hideLyrics,
+            'full-width': config.hideCover
+          }"
+        >
+          <n-layout
+            ref="lrcSider"
+            class="music-lrc"
+            :native-scrollbar="false"
+            @mouseover="mouseOverLayout"
+            @mouseleave="mouseLeaveLayout"
+          >
+            <!-- 歌曲信息 -->
+            <div class="music-lrc-container">
+              <div
+                v-if="config.hideCover"
+                class="music-info-header"
+                :style="{ textAlign: config.centerLyrics ? 'center' : 'left' }"
+              >
+                <div class="music-info-name" v-html="playMusic.name"></div>
+                <div class="music-info-singer">
+                  <span
+                    v-for="(item, index) in artistList"
+                    :key="index"
+                    class="cursor-pointer hover:text-[var(--accent-color)]"
+                    @click="handleArtistClick(item.id)"
+                  >
+                    {{ item.name }}
+                    {{ index < artistList.length - 1 ? ' / ' : '' }}
+                  </span>
+                </div>
+              </div>
+              <!-- 无歌词提示 -->
+              <div v-if="!hasLyrics" class="music-lrc-text no-scroll-tip">
+                <span>暂无歌词</span>
+              </div>
+              <!-- 无时间戳歌词提示 -->
+              <div v-else-if="!supportAutoScroll" class="music-lrc-text no-scroll-tip">
+                <span>{{ t('player.lrc.noAutoScroll') }}</span>
+              </div>
+              <div
+                v-for="(item, index) in lrcArray"
+                :id="`music-lrc-text-${index}`"
+                :key="index"
+                class="music-lrc-text"
+                :class="{
+                  'now-text': index === nowIndex,
+                  'hover-text': item.text && item.startTime !== -1
+                }"
+                @click="item.startTime !== -1 ? setAudioTime(index) : null"
+              >
+                <!-- 逐字歌词显示 -->
+                <div
+                  v-if="item.hasWordByWord && item.words && item.words.length > 0"
+                  class="word-by-word-lyric"
+                >
+                  <template v-for="(word, wordIndex) in item.words" :key="wordIndex">
+                    <span class="lyric-word" :style="getWordStyle(index, wordIndex, word)">
+                      {{ word.text }} </span
+                    ><span class="lyric-word" v-if="word.space">&nbsp;</span></template
+                  >
+                </div>
+                <!-- 普通歌词显示 -->
+                <span v-else :style="getLrcStyle(index)">{{ item.text }}</span>
+                <div v-show="config.showTranslation" class="music-lrc-text-tr">
+                  {{ item.trText }}
+                </div>
+              </div>
+
+              <!-- 无歌词 -->
+              <div v-if="!lrcArray.length" class="music-lrc-text">
+                <span>{{ t('player.lrc.noLrc') }}</span>
+              </div>
+            </div>
+            <!-- 歌词右下角矫正按钮组件 -->
+            <lyric-correction-control
+              v-if="!isMobile"
+              :correction-time="correctionTime"
+              @adjust="adjustCorrectionTime"
+            />
+          </n-layout>
+        </div>
+      </div>
+    </div>
+  </n-drawer>
+</template>
+
+<script setup lang="ts">
+import { useDebounceFn } from '@vueuse/core';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+import Cover3D from '@/components/cover/Cover3D.vue';
+import LyricCorrectionControl from '@/components/lyric/LyricCorrectionControl.vue';
+import LyricSettings from '@/components/lyric/LyricSettings.vue';
+import PlayerControls from '@/components/lyric/PlayerControls.vue';
+import SimplePlayBar from '@/components/player/SimplePlayBar.vue';
+import { useCoverTransition } from '@/composables/useCoverTransition';
+import {
+  adjustCorrectionTime,
+  artistList,
+  correctionTime,
+  lrcArray,
+  nowIndex,
+  nowTime,
+  playMusic,
+  setAudioTime,
+  textColors,
+  useLyricProgress
+} from '@/hooks/MusicHook';
+import { useArtist } from '@/hooks/useArtist';
+import { usePlayerStore } from '@/store/modules/player';
+import { useSettingsStore } from '@/store/modules/settings';
+import { useTransitionStore } from '@/store/modules/transition';
+import { DEFAULT_LYRIC_CONFIG, LyricConfig } from '@/types/lyric';
+import { getImgUrl, isMobile } from '@/utils';
+import { animateGradient, getHoverBackgroundColor, getTextColors } from '@/utils/linearColor';
+
+const { t } = useI18n();
+const transitionStore = useTransitionStore();
+// 定义 refs
+const lrcSider = ref<any>(null);
+const isMouse = ref(false);
+const currentBackground = ref('');
+const animationFrame = ref<number | null>(null);
+const isDark = ref(false);
+
+// ==================== 封面过渡动画（GSAP 驱动动态模糊 + 覆盖层渐显 swap）====================
+const coverTransition = useCoverTransition({
+  currentSrc: computed(() => getImgUrl(playMusic?.value?.picUrl, '500y500')),
+  formatNextUrl: (raw) => getImgUrl(raw, '500y500')
+});
+
+// 计算自定义背景样式
+const customBackgroundStyle = computed(() => {
+  if (!config.value.useCustomBackground) {
+    return null;
+  }
+
+  switch (config.value.backgroundMode) {
+    case 'solid':
+      return config.value.solidColor;
+    case 'gradient': {
+      const { colors, direction } = config.value.gradientColors;
+      return `linear-gradient(${direction}, ${colors.join(', ')})`;
+    }
+    case 'image':
+      if (!config.value.backgroundImage) return null;
+      // 构建完整的背景样式，包括滤镜效果
+      return config.value.backgroundImage;
+    case 'css':
+      return config.value.customCss || null;
+    default:
+      return null;
+  }
+});
+
+// drawer 基础样式（非图片模式）
+const drawerBaseStyle = computed(() => {
+  // 图片模式时不设置背景，使用单独的背景层
+  if (config.value.useCustomBackground && config.value.backgroundMode === 'image') {
+    return { background: 'transparent' };
+  }
+  // 其他模式正常设置背景
+  if (config.value.useCustomBackground && customBackgroundStyle.value) {
+    return { background: customBackgroundStyle.value };
+  }
+  return { background: currentBackground.value || props.background };
+});
+
+// 背景图片层样式（只在图片模式下使用）
+const backgroundImageStyle = computed(() => {
+  const blur = config.value.imageBlur || 0;
+  const brightness = config.value.imageBrightness || 100;
+  return {
+    backgroundImage: `url(${config.value.backgroundImage})`,
+    filter: `blur(${blur}px) brightness(${brightness}%)`
+  };
+});
+const showStickyHeader = ref(false);
+const lyricSettingsRef = ref<InstanceType<typeof LyricSettings>>();
+const isSongChanging = ref(false);
+const isFullScreen = ref(false);
+
+const config = ref<LyricConfig>({ ...DEFAULT_LYRIC_CONFIG });
+
+watch(
+  () => lyricSettingsRef.value?.config,
+  (newConfig) => {
+    if (newConfig) {
+      config.value = newConfig;
+    }
+  },
+  { deep: true, immediate: true }
+);
+
+// 监听本地配置变化，保存到 localStorage
+watch(
+  () => config.value,
+  (newConfig) => {
+    localStorage.setItem('music-full-config', JSON.stringify(newConfig));
+    if (lyricSettingsRef.value) {
+      lyricSettingsRef.value.config = newConfig;
+    }
+  },
+  { deep: true }
+);
+
+const hasLyrics = computed(() => lrcArray.value.length > 0);
+const supportAutoScroll = computed(() => {
+  if (!hasLyrics.value) return false;
+  // 至少存在一条有效的时间戳（>0），才支持自动滚动
+  return lrcArray.value.some((line) => line.startTime !== undefined && line.startTime > 0);
+});
+
+const props = defineProps({
+  modelValue: {
+    type: Boolean,
+    default: false
+  },
+  background: {
+    type: String,
+    default: ''
+  }
+});
+
+const themeMusic = {
+  light: 'linear-gradient(to bottom, #ffffff, #f5f5f5)',
+  dark: 'linear-gradient(to bottom, #1a1a1a, #000000)'
+};
+
+const emit = defineEmits(['update:modelValue']);
+
+const isVisible = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
+});
+
+// 歌词滚动方法
+const lrcScroll = (behavior: ScrollBehavior = 'smooth', forceTop: boolean = false) => {
+  if (!isVisible.value || !lrcSider.value || !supportAutoScroll.value) return;
+
+  if (forceTop) {
+    lrcSider.value.scrollTo({
+      top: 0,
+      behavior
+    });
+    return;
+  }
+
+  if (isMouse.value) return;
+
+  const nowEl = document.querySelector(`#music-lrc-text-${nowIndex.value}`) as HTMLElement;
+  if (nowEl) {
+    const containerHeight = lrcSider.value.$el.clientHeight;
+    const elementTop = nowEl.offsetTop;
+    const scrollTop = elementTop - containerHeight / 2 + nowEl.clientHeight / 2;
+
+    lrcSider.value.scrollTo({
+      top: scrollTop,
+      behavior
+    });
+  }
+};
+
+const debouncedLrcScroll = useDebounceFn(lrcScroll, 200);
+
+const mouseOverLayout = () => {
+  if (isMobile.value) {
+    return;
+  }
+  isMouse.value = true;
+};
+
+const mouseLeaveLayout = () => {
+  if (isMobile.value) {
+    return;
+  }
+  setTimeout(() => {
+    isMouse.value = false;
+    lrcScroll();
+  }, 2000);
+};
+
+watch(nowIndex, () => {
+  // 歌曲切换时不自动滚动
+  if (isSongChanging.value) return;
+  debouncedLrcScroll();
+});
+
+watch(
+  () => isVisible.value,
+  () => {
+    if (isVisible.value) {
+      nextTick(() => {
+        lrcScroll('instant');
+      });
+    }
+  }
+);
+
+const setTextColors = (background: string) => {
+  if (!background) {
+    textColors.value = getTextColors();
+    document.documentElement.style.setProperty('--hover-bg-color', getHoverBackgroundColor(false));
+    document.documentElement.style.setProperty('--text-color-primary', textColors.value.primary);
+    document.documentElement.style.setProperty('--text-color-active', textColors.value.active);
+    return;
+  }
+
+  // 更新文字颜色
+  textColors.value = getTextColors(background);
+  isDark.value = textColors.value.active === '#000000';
+
+  document.documentElement.style.setProperty(
+    '--hover-bg-color',
+    getHoverBackgroundColor(isDark.value)
+  );
+  document.documentElement.style.setProperty('--text-color-primary', textColors.value.primary);
+  document.documentElement.style.setProperty('--text-color-active', textColors.value.active);
+
+  // 处理背景颜色动画
+  if (currentBackground.value) {
+    if (animationFrame.value) {
+      cancelAnimationFrame(animationFrame.value);
+    }
+    const result = animateGradient(currentBackground.value, background, (gradient) => {
+      currentBackground.value = gradient;
+    });
+    if (typeof result === 'number') {
+      animationFrame.value = result;
+    }
+  } else {
+    currentBackground.value = background;
+  }
+};
+
+const targetBackground = computed(() => {
+  if (config.value.useCustomBackground && customBackgroundStyle.value) {
+    if (typeof customBackgroundStyle.value === 'string') {
+      return customBackgroundStyle.value;
+    }
+  }
+  if (config.value.theme !== 'default') {
+    return themeMusic[config.value.theme] || props.background;
+  }
+  return props.background;
+});
+
+// 监听目标背景变化并更新文字颜色
+watch(
+  targetBackground,
+  (newBg) => {
+    if (newBg) {
+      setTextColors(newBg);
+    }
+  },
+  { immediate: true }
+);
+
+// ==================== Smart Mix crossfade UI ====================
+// crossfade 开始时渐变到下一首背景色，结束时渐回当前曲背景色
+watch(
+  () => transitionStore.isCrossfadingUI,
+  (isCrossfading) => {
+    if (isCrossfading && transitionStore.nextBackgroundColor) {
+      if (animationFrame.value) cancelAnimationFrame(animationFrame.value);
+      const result = animateGradient(
+        currentBackground.value,
+        transitionStore.nextBackgroundColor,
+        (v) => {
+          currentBackground.value = v;
+        },
+        400
+      );
+      if (typeof result === 'number') animationFrame.value = result;
+    } else {
+      const targetBg = playMusic?.value?.backgroundColor as string;
+      if (targetBg) {
+        if (animationFrame.value) cancelAnimationFrame(animationFrame.value);
+        const result = animateGradient(
+          currentBackground.value,
+          targetBg,
+          (v) => {
+            currentBackground.value = v;
+          },
+          400
+        );
+        if (typeof result === 'number') animationFrame.value = result;
+      }
+    }
+  }
+);
+
+const { getLrcStyle: originalLrcStyle } = useLyricProgress();
+
+const getLrcStyle = (index: number) => {
+  const colors = textColors.value || getTextColors();
+  const originalStyle = originalLrcStyle(index);
+
+  if (index === nowIndex.value) {
+    // 当前播放的歌词
+    if (originalStyle.backgroundImage) {
+      // 有渐变进度时，使用渐变效果
+      return {
+        ...originalStyle,
+        backgroundImage: originalStyle.backgroundImage
+          .replace(/#ffffff/g, colors.active)
+          .replace(/#ffffff8a/g, `${colors.primary}`),
+        backgroundClip: 'text',
+        WebkitBackgroundClip: 'text',
+        color: 'transparent'
+      };
+    } else {
+      return {
+        color: colors.primary
+      };
+    }
+  }
+
+  // 非当前播放的歌词，使用普通颜色
+  return {
+    color: colors.primary
+  };
+};
+
+// 逐字歌词样式函数
+const getWordStyle = (lineIndex: number, _wordIndex: number, word: any) => {
+  const colors = textColors.value || getTextColors();
+  // 如果不是当前行，返回普通样式
+  if (lineIndex !== nowIndex.value) {
+    return {
+      color: colors.primary,
+      transition: 'color 0.3s ease',
+      // 重置背景相关属性
+      backgroundImage: 'none',
+      WebkitTextFillColor: 'initial'
+    };
+  }
+
+  // 当前行的逐字效果，应用歌词矫正时间
+  const currentTime = (nowTime.value + correctionTime.value) * 1000; // 转换为毫秒，确保与word时间单位一致
+
+  // 直接使用绝对时间比较
+  const wordStartTime = word.startTime; // 单词开始的绝对时间（毫秒）
+  const wordEndTime = word.startTime + word.duration;
+
+  if (currentTime >= wordStartTime && currentTime < wordEndTime) {
+    // 当前正在播放的单词 - 使用渐变进度效果
+    const progress = Math.min((currentTime - wordStartTime) / word.duration, 1);
+    const progressPercent = Math.round(progress * 100);
+
+    return {
+      backgroundImage: `linear-gradient(to right, ${colors.active} 0%, ${colors.active} ${progressPercent}%, ${colors.primary} ${progressPercent}%, ${colors.primary} 100%)`,
+      backgroundClip: 'text',
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      textShadow: `0 0 8px ${colors.active}40`,
+      transition: 'all 0.1s ease'
+    };
+  } else if (currentTime >= wordEndTime) {
+    // 已经播放过的单词 - 纯色显示
+    return {
+      color: colors.active,
+      WebkitTextFillColor: 'initial',
+      transition: 'none'
+    };
+  } else {
+    // 还未播放的单词 - 普通状态
+    return {
+      color: colors.primary,
+      WebkitTextFillColor: 'initial',
+      transition: 'none'
+    };
+  }
+};
+
+// 组件卸载时清理动画
+onBeforeUnmount(() => {
+  if (animationFrame.value) {
+    cancelAnimationFrame(animationFrame.value);
+  }
+  coverTransition.dispose();
+});
+
+const settingsStore = useSettingsStore();
+
+const { navigateToArtist } = useArtist();
+
+const handleArtistClick = (id: number) => {
+  isVisible.value = false;
+  navigateToArtist(id);
+};
+
+const setData = computed(() => settingsStore.setData);
+
+// 监听字体变化并更新 CSS 变量
+watch(
+  () => [setData.value.fontFamily, setData.value.fontScope],
+  ([newFont, fontScope]) => {
+    const defaultFonts =
+      'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+    // 如果不是歌词模式或全局模式，使用默认字体
+    if (fontScope !== 'lyric' && fontScope !== 'global') {
+      document.documentElement.style.setProperty('--current-font-family', defaultFonts);
+      return;
+    }
+
+    if (newFont === 'system-ui') {
+      document.documentElement.style.setProperty('--current-font-family', defaultFonts);
+    } else {
+      // 处理多个字体，确保每个字体名都被正确引用
+      const fontList = newFont.split(',').map((font) => {
+        const trimmedFont = font.trim();
+        // 如果字体名包含空格或特殊字符，添加引号（如果还没有引号的话）
+        return /[\s'"()]/.test(trimmedFont) && !/^['"].*['"]$/.test(trimmedFont)
+          ? `"${trimmedFont}"`
+          : trimmedFont;
+      });
+
+      // 将选择的字体和默认字体组合
+      document.documentElement.style.setProperty(
+        '--current-font-family',
+        `${fontList.join(', ')}, ${defaultFonts}`
+      );
+    }
+  },
+  { immediate: true }
+);
+
+// 监听滚动事件
+const handleScroll = () => {
+  if (!lrcSider.value || !config.value.hideCover) return;
+  const { scrollTop } = lrcSider.value.$el;
+  showStickyHeader.value = scrollTop > 100;
+};
+
+const playerStore = usePlayerStore();
+
+const closeMusicFull = () => {
+  // 退出全屏模式
+  if (isFullScreen.value && document.fullscreenElement) {
+    document.exitFullscreen();
+  }
+  isVisible.value = false;
+  playerStore.setMusicFull(false);
+};
+
+// 全屏切换方法
+const toggleFullScreen = async () => {
+  try {
+    if (!document.fullscreenElement) {
+      // 进入全屏
+      await document.documentElement.requestFullscreen();
+      isFullScreen.value = true;
+    } else {
+      // 退出全屏
+      await document.exitFullscreen();
+      isFullScreen.value = false;
+    }
+  } catch (error) {
+    console.error('全屏切换失败:', error);
+  }
+};
+
+// 监听全屏状态变化
+const handleFullScreenChange = () => {
+  isFullScreen.value = !!document.fullscreenElement;
+};
+
+// 添加滚动监听和全屏状态监听，加载保存的配置
+onMounted(() => {
+  if (lrcSider.value?.$el) {
+    lrcSider.value.$el.addEventListener('scroll', handleScroll);
+  }
+  document.addEventListener('fullscreenchange', handleFullScreenChange);
+
+  const savedConfig = localStorage.getItem('music-full-config');
+  if (savedConfig) {
+    config.value = { ...config.value, ...JSON.parse(savedConfig) };
+  }
+});
+
+// 移除滚动监听和全屏状态监听
+onBeforeUnmount(() => {
+  if (animationFrame.value) {
+    cancelAnimationFrame(animationFrame.value);
+  }
+  if (lrcSider.value?.$el) {
+    lrcSider.value.$el.removeEventListener('scroll', handleScroll);
+  }
+  document.removeEventListener('fullscreenchange', handleFullScreenChange);
+  // 退出全屏模式
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  }
+});
+
+// 监听字体大小变化
+watch(
+  () => config.value.fontSize,
+  (newSize) => {
+    document.documentElement.style.setProperty('--lyric-font-size', `${newSize}px`);
+  }
+);
+
+// 监听字体粗细变化
+watch(
+  () => config.value.fontWeight,
+  (newWeight) => {
+    document.documentElement.style.setProperty('--lyric-font-weight', newWeight.toString());
+  }
+);
+
+// 添加文字间距监听
+watch(
+  () => config.value.letterSpacing,
+  (newSpacing) => {
+    document.documentElement.style.setProperty('--lyric-letter-spacing', `${newSpacing}px`);
+  }
+);
+
+// 添加行高监听
+watch(
+  () => config.value.lineHeight,
+  (newLineHeight) => {
+    document.documentElement.style.setProperty('--lyric-line-height', newLineHeight.toString());
+  }
+);
+
+// 添加对 playMusic.id 的监听，歌曲切换时滚动到顶部
+watch(
+  () => playMusic.value.id,
+  (newId, oldId) => {
+    // 只在歌曲真正切换时滚动到顶部
+    if (newId !== oldId && newId) {
+      isSongChanging.value = true;
+      // 延迟滚动，确保 nowIndex 已重置
+      setTimeout(() => {
+        lrcScroll('instant', true);
+        // 延迟恢复自动滚动，等待歌词数据更新
+        setTimeout(() => {
+          isSongChanging.value = false;
+        }, 300);
+      }, 100);
+    }
+  }
+);
+
+defineExpose({
+  lrcScroll,
+  config
+});
+</script>
+
+<style scoped lang="scss">
+@keyframes round {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.background-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 0;
+}
+
+.drawer-back {
+  @apply absolute bg-cover bg-center;
+  z-index: -1;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+}
+
+.drawer-back.paused {
+  animation-play-state: paused;
+}
+
+#drawer-target {
+  @apply top-0 left-0 absolute overflow-hidden rounded w-full h-full;
+  animation-duration: 300ms;
+
+  .content-wrapper {
+    @apply grid items-center mx-auto h-full;
+    grid-template-columns: minmax(300px, 40%) 1fr;
+    gap: 4rem;
+    max-width: 1600px;
+    padding: 2rem;
+    transition: width 0.3s ease;
+
+    @media (max-width: 1024px) {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+      gap: 2rem;
+    }
+  }
+
+  .left-side {
+    @apply flex flex-col items-center justify-center h-full;
+    transition: all 0.3s ease;
+
+    &.only-cover {
+      @apply col-span-2;
+
+      .img-container {
+        @apply w-[60vh] aspect-square;
+      }
+
+      .music-info {
+        @apply max-w-[800px];
+      }
+    }
+
+    .img-container {
+      @apply relative w-[45vh] mb-8 aspect-square;
+      max-width: 100%;
+
+      // 封面过渡覆盖层（经典模式）
+      .cover-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .cover-overlay-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: inherit;
+        }
+      }
+    }
+
+    .music-info {
+      @apply w-full text-center max-w-[400px];
+
+      .music-content-name {
+        @apply text-3xl font-bold mb-2 line-clamp-2;
+        color: var(--text-color-active);
+      }
+
+      .music-content-singer {
+        @apply text-lg opacity-80;
+        color: var(--text-color-primary);
+      }
+    }
+  }
+
+  .right-side {
+    @apply flex flex-col justify-center h-full relative overflow-hidden;
+
+    &.full-width {
+      @apply col-span-2;
+    }
+
+    &.center {
+      .music-lrc {
+        @apply w-full mx-auto text-center;
+      }
+
+      .music-lrc-text {
+        @apply text-center;
+        transform-origin: center center;
+      }
+
+      .word-by-word-lyric {
+        @apply justify-center;
+      }
+    }
+
+    &.hide {
+      @apply hidden;
+    }
+
+    .music-lrc {
+      @apply w-full h-full bg-transparent;
+      mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 15%,
+        black 85%,
+        transparent 100%
+      );
+      -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 15%,
+        black 85%,
+        transparent 100%
+      );
+
+      .music-info-header {
+        @apply mb-8;
+
+        .music-info-name {
+          @apply text-4xl font-bold mb-2 line-clamp-2;
+          color: var(--text-color-active);
+        }
+
+        .music-info-singer {
+          @apply text-xl opacity-80;
+          color: var(--text-color-primary);
+        }
+      }
+    }
+
+    .music-lrc-container {
+      padding: 50vh 0;
+      min-height: 100%;
+    }
+
+    .music-lrc-text {
+      @apply text-2xl cursor-pointer font-bold px-4 py-3;
+      font-family: var(--current-font-family);
+      font-weight: var(--lyric-font-weight, bold) !important;
+      transition: all 0.3s ease;
+      background-color: transparent;
+      font-size: var(--lyric-font-size, 22px) !important;
+      letter-spacing: var(--lyric-letter-spacing, 0) !important;
+      line-height: var(--lyric-line-height, 2) !important;
+      opacity: 0.6;
+      transform-origin: left center;
+
+      &.now-text {
+        opacity: 1;
+        transform: scale(1.05);
+      }
+
+      &.no-scroll-tip {
+        @apply text-base opacity-60 cursor-default py-2;
+        color: var(--text-color-primary);
+        font-weight: normal;
+
+        span {
+          padding-right: 0;
+        }
+
+        &:hover {
+          background-color: transparent;
+        }
+      }
+
+      span {
+        background-clip: text !important;
+        -webkit-background-clip: text !important;
+        padding-right: 30px;
+      }
+
+      &-tr {
+        @apply font-normal;
+        opacity: 0.7;
+        color: var(--text-color-primary);
+      }
+
+      // 逐字歌词样式
+      .word-by-word-lyric {
+        @apply flex flex-wrap;
+
+        .lyric-word {
+          @apply inline-block;
+          padding-right: 0;
+          font-weight: inherit;
+          font-size: inherit;
+          letter-spacing: inherit;
+          line-height: inherit;
+          cursor: inherit;
+          position: relative;
+
+          &:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+          }
+        }
+      }
+    }
+
+    .hover-text {
+      &:hover {
+        @apply font-bold opacity-100 rounded-xl;
+        background-color: var(--hover-bg-color);
+
+        span {
+          color: var(--text-color-active) !important;
+        }
+      }
+    }
+  }
+}
+
+.mobile {
+  #drawer-target {
+    @apply p-4 pt-8;
+
+    .content-wrapper {
+      @apply flex-col justify-start p-0;
+    }
+
+    .music-img {
+      display: none;
+    }
+
+    .music-lrc {
+      height: calc(100vh - 260px) !important;
+      width: 100vw;
+
+      span {
+        padding-right: 0px !important;
+      }
+
+      .hover-text {
+        &:hover {
+          background-color: transparent;
+        }
+      }
+
+      .music-lrc-text {
+        @apply text-xl text-center;
+      }
+    }
+
+    .music-content {
+      @apply h-[calc(100vh-120px)];
+      width: 100vw !important;
+    }
+  }
+}
+
+.music-drawer {
+  transition: none; // 移除之前的过渡效果，现在使用 JS 动画
+}
+
+// 添加全局字体样式
+// 字体设置已移至上方或不再需要单独的 drawer-target 块
+:root {
+  --current-font-family:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+}
+
+.close-btn {
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.control-left,
+.control-right {
+  &.pure-mode {
+    @apply pointer-events-auto;
+
+    .control-btn {
+      @apply opacity-0 transition-all duration-300;
+      pointer-events: none;
+    }
+
+    &:hover .control-btn {
+      @apply opacity-100;
+      pointer-events: auto;
+    }
+  }
+
+  &:not(.pure-mode) .control-btn {
+    pointer-events: auto;
+  }
+}
+
+.control-right {
+  @apply flex items-center gap-2;
+}
+
+.control-btn {
+  @apply w-9 h-9 flex items-center justify-center rounded cursor-pointer transition-all duration-300;
+  background: rgba(142, 142, 142, 0.192);
+  backdrop-filter: blur(12px);
+
+  i {
+    @apply text-xl;
+    color: var(--text-color-active);
+  }
+
+  &:hover {
+    background: rgba(126, 121, 121, 0.2);
+
+    i {
+      opacity: 1;
+    }
+  }
+}
+
+.lyric-correction {
+  .music-lrc:hover & {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
+</style>

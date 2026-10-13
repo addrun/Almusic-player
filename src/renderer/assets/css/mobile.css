@@ -1,0 +1,392 @@
+/* ============================================================
+   Almusic Player — 移动端设计系统
+   ------------------------------------------------------------
+   设计令牌（Design Tokens）：
+   - 暖色基底（背景/表面/卡片/文字/边框）
+   - 动态强调色保持不变（由 useCoverColor 从封面注入 --accent-color）
+   - 字体族变量
+   - 通用组件样式（底部导航、迷你播放栏、搜索 pill 等）
+   - Naive UI message 样式（保留原有）
+   ============================================================ */
+
+/* ==================== 设计令牌 ==================== */
+
+.mobile {
+  /* ── 浅色主题 ── */
+  --m-bg: #f5f1eb;
+  --m-surface: #eae6df;
+  --m-surface-alt: #e0dbd3;
+  --m-card: #e8e4dc;
+  --m-card-light: #e8e4dc;
+  --m-text-primary: #2c2c2c;
+  --m-text-secondary: #6b6560;
+  --m-text-muted: #9a9590;
+  --m-border: #d5d0c9;
+  --m-white: #ffffff;
+  --m-shadow: rgba(0, 0, 0, 0.06);
+
+  /* ── 深色主题覆盖 ── */
+  &.dark,
+  .dark & {
+    --m-bg: #1a1a1a;
+    --m-surface: #252525;
+    --m-surface-alt: #2a2a2a;
+    --m-card: #333333;
+    --m-card-light: #3a3a3a;
+    --m-text-primary: #f0ece4;
+    --m-text-secondary: #aaaaaa;
+    --m-text-muted: #666666;
+    --m-border: #3a3a3a;
+    --m-shadow: rgba(0, 0, 0, 0.3);
+  }
+
+  /* ── 字体族 ── */
+  --m-font-serif: 'Cormorant Garamond', 'Noto Serif SC', serif;
+  --m-font-sans: 'Noto Sans SC', -apple-system, 'PingFang SC', sans-serif;
+  --m-font-art: 'Inter', 'Noto Sans SC', sans-serif;
+
+  /* ── 圆角 ── */
+  --m-radius-sm: 8px;
+  --m-radius-md: 12px;
+  --m-radius-lg: 16px;
+  --m-radius-xl: 20px;
+  --m-radius-full: 9999px;
+
+  /* ── 动画缓动曲线（Emil Kowalski / Apple 风格） ── */
+  --m-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --m-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --m-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* ── 动画时长 ── */
+  --m-duration-press: 160ms;
+  --m-duration-tooltip: 125ms;
+  --m-duration-dropdown: 200ms;
+  --m-duration-modal: 300ms;
+  --m-duration-stagger: 50ms;
+
+  /* ── 动态强调色（由 useCoverColor 注入，此处仅声明 fallback） ── */
+  /* --accent-color / --accent-color-rgb 等保持由 index.css 全局注入 */
+
+  /* ── 底部导航高度 ── */
+  --m-bottom-nav-height: 64px;
+  --m-mini-player-height: 64px;
+}
+
+/* ==================== 字体引入 ==================== */
+/* 在 index.html 中通过 <link> 引入 Google Fonts，此处仅声明 fallback */
+/* 如需离线，可将字体文件放入 resources/ 并用 @font-face 声明 */
+
+/* ==================== 通用组件样式 ==================== */
+
+/* ── 顶部栏 ── */
+.mobile .mobile-header {
+  background: var(--m-bg);
+  border-bottom: 1px solid var(--m-border);
+}
+
+.mobile .mobile-header .logo-text {
+  font-family: var(--m-font-serif);
+  font-weight: 700;
+}
+
+/* ── 搜索 pill ── */
+.mobile .search-pill {
+  background: var(--m-surface);
+  border-radius: var(--m-radius-full);
+  color: var(--m-text-muted);
+}
+
+/* ── 迷你播放栏 ── */
+.mobile .mini-player {
+  background: var(--m-surface);
+  border-radius: var(--m-radius-lg);
+  box-shadow: 0 2px 12px var(--m-shadow);
+}
+
+.mobile .mini-player-title {
+  color: var(--m-text-primary);
+}
+
+.mobile .mini-player-artist {
+  color: var(--m-text-muted);
+}
+
+/* ── 底部导航 ── */
+.mobile .mobile-bottom-nav {
+  background: var(--m-bg);
+  border-top: 1px solid var(--m-border);
+}
+
+.mobile .nav-item .nav-dot {
+  background: var(--m-card);
+  transition: background 0.2s;
+}
+
+.mobile .nav-item.active .nav-dot {
+  background: var(--accent-color);
+}
+
+.mobile .nav-item .nav-label {
+  color: var(--m-text-muted);
+  font-size: 10px;
+}
+
+.mobile .nav-item.active .nav-label {
+  color: var(--m-text-primary);
+}
+
+/* ── 卡片 ── */
+.mobile .m-card {
+  background: var(--m-card);
+  border-radius: var(--m-radius-md);
+}
+
+/* ── 艺术过渡页 ── */
+.mobile .art-text {
+  font-family: var(--m-font-art);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+/* ── 歌词聚焦 ── */
+.mobile .lyric-focus-main {
+  font-family: var(--m-font-serif);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.mobile .lyric-focus-translation {
+  font-weight: 300;
+  color: var(--m-text-muted);
+}
+
+/* ==================== 安全区域 ==================== */
+
+.mobile .safe-area-top {
+  padding-top: calc(var(--safe-area-inset-top, 0px) + 16px);
+}
+
+.mobile .safe-area-bottom {
+  padding-bottom: var(--safe-area-inset-bottom, 0px);
+}
+
+/* ==================== 交互反馈（Emil Kowalski / Apple 风格） ==================== */
+
+/* 按钮按压反馈：pointer-down 即时响应 */
+.mobile .pressable {
+  transition: transform var(--m-duration-press) var(--m-ease-out);
+  cursor: pointer;
+}
+
+.mobile .pressable:active {
+  transform: scale(0.97);
+}
+
+/* 触摸设备 hover 门控（避免 tap 误触） */
+@media (hover: hover) and (pointer: fine) {
+  .mobile .pressable:hover {
+    /* 仅在精确指针设备上启用 hover 状态 */
+  }
+}
+
+/* ==================== 半透明材质（Apple 风格） ==================== */
+
+.mobile .m-material {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.mobile .m-material-header {
+  background: color-mix(in srgb, var(--m-bg) 70%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* 滚动边缘渐变（替代硬边框） */
+.mobile .scroll-edge-top {
+  mask-image: linear-gradient(to bottom, transparent, black 24px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 24px);
+}
+
+/* ==================== 入场动画 ==================== */
+
+/* 通用渐入：从 scale(0.95) + opacity:0 开始，绝不从 scale(0) */
+.mobile .enter-fade {
+  opacity: 0;
+  transform: scale(0.97);
+  animation: m-enter-fade var(--m-duration-modal) var(--m-ease-out) forwards;
+}
+
+@keyframes m-enter-fade {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 从下方滑入（toast、sheet 等） */
+.mobile .enter-slide-up {
+  opacity: 0;
+  transform: translateY(100%);
+  animation: m-enter-slide-up var(--m-duration-modal) var(--m-ease-drawer) forwards;
+}
+
+@keyframes m-enter-slide-up {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 列表交错入场（30-80ms 间隔） */
+.mobile .enter-stagger {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: m-enter-stagger 300ms var(--m-ease-out) forwards;
+}
+
+.mobile .enter-stagger:nth-child(1) { animation-delay: 0ms; }
+.mobile .enter-stagger:nth-child(2) { animation-delay: 50ms; }
+.mobile .enter-stagger:nth-child(3) { animation-delay: 100ms; }
+.mobile .enter-stagger:nth-child(4) { animation-delay: 150ms; }
+.mobile .enter-stagger:nth-child(5) { animation-delay: 200ms; }
+.mobile .enter-stagger:nth-child(6) { animation-delay: 250ms; }
+.mobile .enter-stagger:nth-child(7) { animation-delay: 300ms; }
+.mobile .enter-stagger:nth-child(8) { animation-delay: 350ms; }
+.mobile .enter-stagger:nth-child(9) { animation-delay: 400ms; }
+
+@keyframes m-enter-stagger {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==================== 减少动画支持 ==================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile .enter-fade,
+  .mobile .enter-slide-up,
+  .mobile .enter-stagger {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .mobile .pressable {
+    transition: opacity var(--m-duration-press) ease;
+  }
+
+  .mobile .pressable:active {
+    transform: none;
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .mobile .m-material,
+  .mobile .m-material-header {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--m-bg);
+  }
+}
+
+/* ==================== Naive UI Message 样式（保留原有） ==================== */
+
+/* 移动端 message 容器：移到底部 */
+.mobile .n-message-container {
+  top: auto !important;
+  bottom: calc(200px + var(--safe-area-inset-bottom, 0px)) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  min-width: 70vw !important;
+  max-width: 90vw !important;
+  padding: 0 !important;
+  z-index: 99999999999 !important;
+}
+
+/* 移动端 message 项目样式 */
+.mobile .n-message-wrapper {
+  margin: 0 0 8px 0 !important;
+}
+
+.mobile .n-message {
+  padding: 12px 20px !important;
+  border-radius: 24px !important;
+  font-size: 14px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+  backdrop-filter: blur(10px) !important;
+  max-width: 85vw !important;
+}
+
+/* 深色模式下的 message */
+.mobile.noElectron .n-message {
+  background: rgba(50, 50, 50, 0.95) !important;
+  color: #fff !important;
+}
+
+/* 浅色模式下的 message */
+.mobile:not(.noElectron) .n-message,
+.mobile .theme-light .n-message {
+  background: rgba(255, 255, 255, 0.5) !important;
+  color: #333 !important;
+}
+
+/* 成功消息 */
+.mobile .n-message--success-type {
+  background: linear-gradient(135deg, rgba(var(--accent-color-rgb), 0.95), rgba(var(--accent-color-rgb), 0.95)) !important;
+  color: #fff !important;
+}
+
+.mobile .n-message--success-type .n-message__icon {
+  color: #fff !important;
+}
+
+/* 错误消息 */
+.mobile .n-message--error-type {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95)) !important;
+  color: #fff !important;
+}
+
+.mobile .n-message--error-type .n-message__icon {
+  color: #fff !important;
+}
+
+/* 警告消息 */
+.mobile .n-message--warning-type {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(217, 119, 6, 0.95)) !important;
+  color: #fff !important;
+}
+
+.mobile .n-message--warning-type .n-message__icon {
+  color: #fff !important;
+}
+
+/* 信息消息 */
+.mobile .n-message--info-type {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95)) !important;
+  color: #fff !important;
+}
+
+.mobile .n-message--info-type .n-message__icon {
+  color: #fff !important;
+}
+
+/* loading 消息 */
+.mobile .n-message--loading-type {
+  background: rgba(50, 50, 50, 0.95) !important;
+  color: #fff !important;
+}
+
+/* 隐藏关闭按钮让设计更简洁 */
+.mobile .n-message__close {
+  display: none !important;
+}
+
+/* 图标样式调整 */
+.mobile .n-message__icon {
+  margin-right: 8px !important;
+}

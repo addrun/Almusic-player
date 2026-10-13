@@ -1,0 +1,9 @@
+[
+  { "key": "hideCover", "type": "boolean", "label": "隐藏封面", "default": false },
+  { "key": "centerLyrics", "type": "boolean", "label": "居中显示", "default": false },
+  { "key": "showTranslation", "type": "boolean", "label": "显示翻译", "default": true },
+  { "key": "hideLyrics", "type": "boolean", "label": "隐藏歌词", "default": false },
+  { "type": "divider" },
+  { "key": "hideMiniPlayBar", "type": "boolean", "label": "显示迷你播放条", "default": true },
+  { "key": "contentWidth", "type": "slider", "label": "内容宽度", "min": 50, "max": 100, "step": 5, "marks": ["50%", "75%", "100%"], "default": 75 }
+]

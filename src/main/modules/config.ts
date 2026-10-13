@@ -1,0 +1,107 @@
+import { app, ipcMain } from 'electron';
+import Store from 'electron-store';
+import * as path from 'path';
+
+import { createDefaultShortcuts, type ShortcutsConfig } from '../../shared/shortcuts';
+import set from '../set.json';
+
+type SetConfig = {
+  isProxy: boolean;
+  proxyConfig: {
+    enable: boolean;
+    protocol: string;
+    host: string;
+    port: number;
+  };
+  enableRealIP: boolean;
+  realIP: string;
+  noAnimate: boolean;
+  animationSpeed: number;
+  author: string;
+  authorUrl: string;
+  musicApiPort: number;
+  closeAction: 'ask' | 'minimize' | 'close';
+  musicQuality: string;
+  fontFamily: string;
+  fontScope: 'global' | 'lyric';
+  language: string;
+  showTopAction: boolean;
+  enableGpuAcceleration: boolean;
+  downloadPath: string;
+  enableDiskCache: boolean;
+  diskCacheDir: string;
+  diskCacheMaxSizeMB: number;
+  diskCacheCleanupPolicy: 'lru' | 'fifo';
+  defaultPage: string;
+  lyricUnlockShortcut: string;
+  lyricFontFamily: string;
+  lyricTextColor: string;
+  lyricPlayedColor: string;
+  lyricUnplayedColor: string;
+  lyricStrokeColor: string;
+  lyricUseCoverColor: boolean;
+  githubMirror: string;
+};
+interface StoreType {
+  set: SetConfig;
+  shortcuts: ShortcutsConfig;
+}
+
+let store: Store<StoreType>;
+
+/**
+ * 初始化配置管理
+ */
+export function initializeConfig() {
+  store = new Store<StoreType>({
+    name: 'config',
+    defaults: {
+      set: set as SetConfig,
+      shortcuts: createDefaultShortcuts()
+    }
+  });
+
+  store.get('set.downloadPath') || store.set('set.downloadPath', app.getPath('downloads'));
+  store.get('set.diskCacheDir') ||
+    store.set('set.diskCacheDir', path.join(app.getPath('userData'), 'cache'));
+  if (store.get('set.diskCacheMaxSizeMB') === undefined) {
+    store.set('set.diskCacheMaxSizeMB', 4096);
+  }
+  if (!store.get('set.diskCacheCleanupPolicy')) {
+    store.set('set.diskCacheCleanupPolicy', 'lru');
+  }
+  if (store.get('set.enableDiskCache') === undefined) {
+    store.set('set.enableDiskCache', true);
+  }
+
+  // 定义ipcRenderer监听事件
+  ipcMain.on('set-store-value', (_, key, value) => {
+    store.set(key, value);
+  });
+
+  ipcMain.on('get-store-value', (_, key) => {
+    const value = store.get(key);
+    _.returnValue = value || '';
+  });
+
+  // GPU加速设置更新处理
+  // 注意：GPU加速设置必须在应用启动时在app.ready之前设置才能生效
+  ipcMain.on('update-gpu-acceleration', (event, enabled: boolean) => {
+    try {
+      store.set('set.enableGpuAcceleration', enabled);
+
+      // GPU加速设置需要重启应用才能生效
+      event.sender.send('gpu-acceleration-updated', enabled);
+    } catch (error) {
+      console.error('GPU加速设置更新失败:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      event.sender.send('gpu-acceleration-update-error', errorMessage);
+    }
+  });
+
+  return store;
+}
+
+export function getStore() {
+  return store;
+}

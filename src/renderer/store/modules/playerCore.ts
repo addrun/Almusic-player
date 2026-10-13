@@ -1,0 +1,760 @@
+import { cloneDeep } from 'lodash';
+import { createDiscreteApi } from 'naive-ui';
+import { defineStore } from 'pinia';
+import { computed, ref } from 'vue';
+
+import i18n from '@/../i18n/renderer';
+import { isCrossPlatformSong } from '@/api/crossPlatformSearch';
+import { rejectKugouPlaybackUrl } from '@/api/kugouPlaybackFallback';
+import { getParsingMusicUrl } from '@/api/music';
+import { isLocalSong, useLocalMusic } from '@/hooks/useLocalMusic';
+import { useLyrics, useSongDetail } from '@/hooks/usePlayerHooks';
+import { audioService } from '@/services/audioService';
+import { recoverKugouAudio } from '@/services/kugouAudioRecovery';
+import { playbackRequestManager } from '@/services/playbackRequestManager';
+import { preloadService } from '@/services/preloadService';
+import { SongSourceConfigManager } from '@/services/SongSourceConfigManager';
+import type { AudioOutputDevice } from '@/types/audio';
+import type { Platform, SongResult } from '@/types/music';
+import { getImgUrl } from '@/utils';
+import { getImageLinearBackground } from '@/utils/linearColor';
+
+import { usePlayHistoryStore } from './playHistory';
+
+const { message } = createDiscreteApi(['message']);
+
+/**
+ * 核心播放控制 Store
+ * 负责：播放/暂停、当前歌曲、音频URL、音量、播放速度、全屏状态
+ */
+export const usePlayerCoreStore = defineStore(
+  'playerCore',
+  () => {
+    // ==================== 状态 ====================
+    const play = ref(false);
+    const isPlay = ref(false);
+    const playMusic = ref<SongResult>({} as SongResult);
+    const playMusicUrl = ref('');
+    const musicFull = ref(false);
+    const playbackRate = ref(1.0);
+    const volume = ref(1);
+    const userPlayIntent = ref(false); // 用户是否想要播放
+    const isFmPlaying = ref(false); // 是否正在播放私人FM
+
+    // 音频输出设备
+    const audioOutputDeviceId = ref<string>(
+      localStorage.getItem('audioOutputDeviceId') || 'default'
+    );
+    const availableAudioDevices = ref<AudioOutputDevice[]>([]);
+
+    let checkPlayTime: NodeJS.Timeout | null = null;
+    let checkPlaybackRetryCount = 0;
+    const MAX_CHECKPLAYBACK_RETRIES = 3;
+
+    // ==================== Computed ====================
+    const currentSong = computed(() => playMusic.value);
+    const isPlaying = computed(() => isPlay.value);
+
+    // ==================== Actions ====================
+
+    /**
+     * 设置播放状态
+     */
+    const setIsPlay = (value: boolean) => {
+      isPlay.value = value;
+      play.value = value;
+      window.electron?.ipcRenderer.send('update-play-state', value);
+    };
+
+    /**
+     * 设置全屏状态
+     */
+    const setMusicFull = (value: boolean) => {
+      musicFull.value = value;
+    };
+
+    /**
+     * 设置播放速度
+     */
+    const setPlaybackRate = (rate: number) => {
+      playbackRate.value = rate;
+      audioService.setPlaybackRate(rate);
+    };
+
+    /**
+     * 设置音量
+     */
+    const setVolume = (newVolume: number) => {
+      const normalizedVolume = Math.max(0, Math.min(1, newVolume));
+      volume.value = normalizedVolume;
+      audioService.setVolume(normalizedVolume);
+    };
+
+    /**
+     * 获取音量
+     */
+    const getVolume = () => volume.value;
+
+    /**
+     * 增加音量
+     */
+    const increaseVolume = (step: number = 0.1) => {
+      const newVolume = Math.min(1, volume.value + step);
+      setVolume(newVolume);
+      return newVolume;
+    };
+
+    /**
+     * 减少音量
+     */
+    const decreaseVolume = (step: number = 0.1) => {
+      const newVolume = Math.max(0, volume.value - step);
+      setVolume(newVolume);
+      return newVolume;
+    };
+
+    /**
+     * 播放状态检测
+     * 在播放开始后延迟检查音频是否真正在播放，防止无声播放
+     */
+    const checkPlaybackState = (song: SongResult, requestId?: string, timeout: number = 6000) => {
+      if (checkPlayTime) {
+        clearTimeout(checkPlayTime);
+      }
+      const sound = audioService.getCurrentSound();
+      if (!sound) return;
+
+      // 如果没有提供 requestId，创建一个临时标识
+      const actualRequestId = requestId || `check_${Date.now()}`;
+
+      const onPlayHandler = () => {
+        audioService.off('play', onPlayHandler);
+        audioService.off('playerror', onPlayErrorHandler);
+        checkPlaybackRetryCount = 0; // 播放成功，重置重试计数
+        if (checkPlayTime) {
+          clearTimeout(checkPlayTime);
+          checkPlayTime = null;
+        }
+      };
+
+      const onPlayErrorHandler = async () => {
+        audioService.off('play', onPlayHandler);
+        audioService.off('playerror', onPlayErrorHandler);
+
+        // 如果有 requestId，验证其有效性
+        if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
+          return;
+        }
+
+        // 检查重试次数限制
+        if (checkPlaybackRetryCount >= MAX_CHECKPLAYBACK_RETRIES) {
+          console.warn(`播放重试已达上限 (${MAX_CHECKPLAYBACK_RETRIES} 次)，停止重试`);
+          checkPlaybackRetryCount = 0;
+          setPlayMusic(false);
+          return;
+        }
+
+        if (userPlayIntent.value && play.value) {
+          checkPlaybackRetryCount++;
+          if (song.kugou && song.playMusicUrl) {
+            rejectKugouPlaybackUrl(song, song.playMusicUrl);
+          }
+          // 本地音乐不需要刷新 URL
+          if (!playMusic.value.playMusicUrl?.startsWith('local://')) {
+            playMusic.value.playMusicUrl = undefined;
+          }
+          const refreshedSong = { ...song, playMusicUrl: undefined, isFirstPlay: true };
+          await handlePlayMusic(refreshedSong, true);
+        }
+      };
+
+      audioService.on('play', onPlayHandler);
+      audioService.on('playerror', onPlayErrorHandler);
+
+      checkPlayTime = setTimeout(() => {
+        // 如果有 requestId，验证其有效性
+        if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
+          audioService.off('play', onPlayHandler);
+          audioService.off('playerror', onPlayErrorHandler);
+          return;
+        }
+
+        // 双重确认：音频是否真的在播放
+        // 额外检查底层 HTMLAudioElement 的状态，避免 EQ 重建期间的误判
+        const currentSound = audioService.getCurrentSound();
+        let htmlPlaying = false;
+        if (currentSound && playMusicUrl.value?.startsWith('local://')) {
+          // LocalAudioPlayer: 直接依赖 playing() 判断
+          htmlPlaying = currentSound.playing();
+        } else if (currentSound) {
+          try {
+            const sounds = (currentSound as any)._sounds as any[];
+            if (sounds?.[0]?._node instanceof HTMLMediaElement) {
+              const node = sounds[0]._node as HTMLMediaElement;
+              htmlPlaying = !node.paused && !node.ended && node.readyState > 2;
+            }
+          } catch {
+            // 静默忽略
+          }
+        }
+
+        if (htmlPlaying) {
+          // 底层 HTMLAudioElement 实际在播放，不需要重试
+          audioService.off('play', onPlayHandler);
+          audioService.off('playerror', onPlayErrorHandler);
+          return;
+        }
+
+        if (!audioService.isActuallyPlaying() && userPlayIntent.value && play.value) {
+          audioService.off('play', onPlayHandler);
+          audioService.off('playerror', onPlayErrorHandler);
+
+          // 检查重试次数限制
+          if (checkPlaybackRetryCount >= MAX_CHECKPLAYBACK_RETRIES) {
+            console.warn(`超时重试已达上限 (${MAX_CHECKPLAYBACK_RETRIES} 次)，停止重试`);
+            checkPlaybackRetryCount = 0;
+            setPlayMusic(false);
+            return;
+          }
+
+          checkPlaybackRetryCount++;
+
+          // 本地音乐不需要刷新 URL
+          if (!playMusic.value.playMusicUrl?.startsWith('local://')) {
+            playMusic.value.playMusicUrl = undefined;
+          }
+          (async () => {
+            const refreshedSong = { ...song, isFirstPlay: true };
+            await handlePlayMusic(refreshedSong, true);
+          })();
+        } else {
+          audioService.off('play', onPlayHandler);
+          audioService.off('playerror', onPlayErrorHandler);
+        }
+      }, timeout);
+    };
+
+    /**
+     * 核心播放处理函数
+     */
+    const handlePlayMusic = async (music: SongResult, shouldPlay: boolean = true) => {
+      // 如果是新歌曲，重置已尝试的音源和重试计数
+      if (music.id !== playMusic.value.id) {
+        SongSourceConfigManager.clearTriedSources(music.id);
+        checkPlaybackRetryCount = 0;
+      }
+
+      // 创建新的播放请求并取消之前的所有请求
+      const requestId = playbackRequestManager.createRequest(music);
+
+      const currentSound = audioService.getCurrentSound();
+      if (currentSound) {
+        currentSound.stop();
+        currentSound.unload();
+      }
+
+      // 验证请求是否仍然有效
+      if (!playbackRequestManager.isRequestValid(requestId)) {
+        return false;
+      }
+
+      // 激活请求
+      if (!playbackRequestManager.activateRequest(requestId)) {
+        return false;
+      }
+
+      const originalMusic = { ...music };
+
+      const { loadLrc, loadCrossPlatformLyric } = useLyrics();
+      const { getSongDetail } = useSongDetail();
+      const localMusic = useLocalMusic();
+
+      // 本地歌曲：使用专属逻辑加载歌词（不走网易云 API）
+      const [lyrics, { backgroundColor, primaryColor }] = await Promise.all([
+        (async () => {
+          // 本地歌曲始终走专属歌词加载（优先级：外部 .lrc → 内嵌歌词 → 社区歌词）
+          if (isLocalSong(music)) {
+            return await localMusic.loadLocalLyrics(music);
+          }
+          // 跨平台歌曲：通过 GD 音乐台获取歌词（不走网易云 API）
+          if (isCrossPlatformSong(music)) {
+            return await loadCrossPlatformLyric(music);
+          }
+          // 在线歌曲：如果已有歌词且有效，直接使用
+          if (music.lyric && music.lyric.lrcTimeArray.length > 0) {
+            return music.lyric;
+          }
+          // 在线歌曲走网易云 API
+          return await loadLrc(music.id);
+        })(),
+        (async () => {
+          if (music.backgroundColor && music.primaryColor) {
+            return { backgroundColor: music.backgroundColor, primaryColor: music.primaryColor };
+          }
+          return await getImageLinearBackground(getImgUrl(music?.picUrl, '30y30'));
+        })()
+      ]);
+
+      // 在更新状态前再次验证请求
+      if (!playbackRequestManager.isRequestValid(requestId)) {
+        return false;
+      }
+
+      // 设置歌词和背景色
+      music.lyric = lyrics;
+      music.backgroundColor = backgroundColor;
+      music.primaryColor = primaryColor;
+      music.playLoading = true;
+
+      // 更新 playMusic 和播放状态
+      playMusic.value = music;
+      play.value = shouldPlay;
+      isPlay.value = shouldPlay;
+      userPlayIntent.value = shouldPlay;
+
+      // 更新标题
+      let title = music.name;
+      if (music.source === 'netease' && music?.song?.artists) {
+        title += ` - ${music.song.artists.reduce(
+          (prev: string, curr: any) => `${prev}${curr.name}/`,
+          ''
+        )}`;
+      }
+      document.title = 'Almusic Player - ' + title;
+
+      try {
+        // 添加到历史记录
+        const playHistoryStore = usePlayHistoryStore();
+        if (music.isPodcast) {
+          if (music.program) {
+            playHistoryStore.addPodcast(music.program);
+          }
+        } else {
+          playHistoryStore.addMusic(music);
+        }
+
+        // 获取歌曲详情
+        const updatedPlayMusic = await getSongDetail(originalMusic, requestId);
+
+        // 在获取详情后再次验证请求
+        if (!playbackRequestManager.isRequestValid(requestId)) {
+          playbackRequestManager.failRequest(requestId);
+          return false;
+        }
+
+        updatedPlayMusic.lyric = lyrics;
+
+        // 本地歌曲：确保 URL 正确编码（统一格式：local:///编码后的路径）
+        if (isLocalSong(updatedPlayMusic) && updatedPlayMusic.playMusicUrl) {
+          const rawPath = updatedPlayMusic.playMusicUrl.replace('local:///', '');
+          // 先解码，再重新编码，确保格式一致
+          let decodedPath: string;
+          try {
+            decodedPath = decodeURIComponent(rawPath);
+          } catch {
+            decodedPath = rawPath;
+          }
+          updatedPlayMusic.playMusicUrl = `local:///${encodeURIComponent(decodedPath)}`;
+        }
+
+        playMusic.value = updatedPlayMusic;
+        playMusicUrl.value = updatedPlayMusic.playMusicUrl as string;
+        music.playMusicUrl = updatedPlayMusic.playMusicUrl as string;
+
+        // 在拆分后补充：触发预加载下一首/下下首（与 playlist store 保持一致）
+        try {
+          const { usePlaylistStore } = await import('./playlist');
+          const playlistStore = usePlaylistStore();
+          // 基于当前歌曲在播放列表中的位置来预加载
+          const list = playlistStore.playList;
+          if (Array.isArray(list) && list.length > 0) {
+            const idx = list.findIndex(
+              (item: SongResult) =>
+                item.id === updatedPlayMusic.id && item.source === updatedPlayMusic.source
+            );
+            if (idx !== -1) {
+              setTimeout(() => {
+                playlistStore.preloadNextSongs(idx);
+              }, 3000);
+            }
+          }
+        } catch (e) {
+          console.warn('预加载触发失败（可能是依赖未加载或循环依赖），已忽略:', e);
+        }
+
+        try {
+          const result = await playAudio(requestId);
+
+          if (result) {
+            music.playMusicUrl = playMusic.value.playMusicUrl;
+            // 播放成功，清除 isFirstPlay 标记，避免暂停时被误判为新歌
+            playMusic.value.isFirstPlay = false;
+            playbackRequestManager.completeRequest(requestId);
+            return true;
+          } else {
+            playbackRequestManager.failRequest(requestId);
+            return false;
+          }
+        } catch (error) {
+          console.error('自动播放音频失败:', error);
+          playbackRequestManager.failRequest(requestId);
+          return false;
+        }
+      } catch (error) {
+        if (!playbackRequestManager.isRequestValid(requestId)) return false;
+        console.error('处理播放音乐失败:', error);
+        message.error(i18n.global.t('player.playFailed'));
+        if (playMusic.value) {
+          playMusic.value.playLoading = false;
+        }
+        playbackRequestManager.failRequest(requestId);
+
+        return false;
+      }
+    };
+
+    /**
+     * 播放音频
+     */
+    const playAudio = async (requestId?: string) => {
+      if (!playMusicUrl.value || !playMusic.value) return null;
+
+      // 如果提供了 requestId，验证请求是否仍然有效
+      if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
+        return null;
+      }
+
+      try {
+        let shouldPlay = play.value;
+
+        // 检查保存的进度
+        let initialPosition = 0;
+        const savedProgress = JSON.parse(localStorage.getItem('playProgress') || '{}');
+        if (savedProgress.songId === playMusic.value.id) {
+          initialPosition = savedProgress.progress;
+        }
+
+        // 本地歌曲不使用 PreloadService（LocalAudioPlayer 自行管理）
+        const isLocal = isLocalSong(playMusic.value);
+        let sound: Howl | undefined;
+
+        if (!isLocal) {
+          // 非本地歌曲：使用 PreloadService 获取音频
+          try {
+            const preloadedSound = preloadService.consume(
+              playMusic.value.id,
+              playMusic.value.playMusicUrl
+            ) as Howl | undefined;
+            if (preloadedSound && preloadedSound.state() === 'loaded') {
+              sound = preloadedSound;
+            } else {
+              const loadingSong = playMusic.value;
+              if (loadingSong.kugou && requestId && shouldPlay) {
+                const recovered = await recoverKugouAudio({
+                  url: loadingSong.playMusicUrl!,
+                  load: (url) => preloadService.load({ ...loadingSong, playMusicUrl: url }),
+                  resolve: async () => {
+                    const response = await getParsingMusicUrl(0, {
+                      ...cloneDeep(loadingSong),
+                      playMusicUrl: undefined
+                    });
+                    return response?.data?.data?.url;
+                  },
+                  reject: (url) => rejectKugouPlaybackUrl(loadingSong, url),
+                  cancelLoad: () => preloadService.cancel(loadingSong.id),
+                  dispose: (obsoleteSound) => obsoleteSound.unload(),
+                  isActive: () =>
+                    playbackRequestManager.isRequestValid(requestId) && userPlayIntent.value
+                });
+                if (!recovered) return null;
+                sound = recovered.sound;
+                loadingSong.playMusicUrl = recovered.url;
+                playMusicUrl.value = recovered.url;
+              } else {
+                sound = await preloadService.load(loadingSong);
+              }
+            }
+          } catch (error) {
+            console.error('PreloadService 加载失败:', error);
+            throw error;
+          }
+        }
+
+        if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
+          sound?.unload();
+          return null;
+        }
+        shouldPlay = play.value && userPlayIntent.value;
+
+        // 播放新音频，传入已加载的 sound 实例（本地歌曲传入 undefined）
+        const newSound = await audioService.play(
+          playMusicUrl.value,
+          playMusic.value,
+          shouldPlay,
+          initialPosition || 0,
+          sound
+        );
+
+        // 播放后再次验证请求
+        if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
+          newSound.stop();
+          newSound.unload();
+          return null;
+        }
+
+        // 添加播放状态检测
+        if (shouldPlay && requestId) {
+          checkPlaybackState(playMusic.value, requestId);
+        }
+
+        // 发布音频就绪事件
+        window.dispatchEvent(
+          new CustomEvent('audio-ready', { detail: { sound: newSound, shouldPlay } })
+        );
+
+        // 时长检查已在 preloadService.ts 中完成
+
+        return newSound;
+      } catch (error) {
+        if (requestId && !playbackRequestManager.isRequestValid(requestId)) return null;
+        console.error('播放音频失败:', error);
+
+        const errorMsg = error instanceof Error ? error.message : String(error);
+
+        // 操作锁错误不应该停止播放状态，只需要重试
+        if (errorMsg.includes('操作锁激活')) {
+          try {
+            audioService.forceResetOperationLock();
+          } catch (e) {
+            console.error('重置操作锁失败:', e);
+          }
+
+          setTimeout(() => {
+            // 验证请求是否仍然有效再重试
+            if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
+              return;
+            }
+            if (userPlayIntent.value && play.value) {
+              playAudio(requestId).catch((e) => {
+                console.error('重试播放失败:', e);
+                setPlayMusic(false);
+              });
+            }
+          }, 1000);
+        } else {
+          // 非操作锁错误，停止播放并通知用户
+          setPlayMusic(false);
+          console.warn('播放音频失败（非操作锁错误），由调用方处理重试');
+          message.error(i18n.global.t('player.playFailed'));
+        }
+
+        return null;
+      }
+    };
+
+    /**
+     * 暂停播放
+     */
+    const handlePause = async () => {
+      try {
+        const currentSound = audioService.getCurrentSound();
+        if (currentSound) {
+          currentSound.pause();
+        }
+        setPlayMusic(false);
+        userPlayIntent.value = false;
+      } catch (error) {
+        console.error('暂停播放失败:', error);
+      }
+    };
+
+    /**
+     * 设置播放/暂停
+     */
+    const setPlayMusic = async (value: boolean | SongResult) => {
+      if (typeof value === 'boolean') {
+        setIsPlay(value);
+        userPlayIntent.value = value;
+      } else {
+        await handlePlayMusic(value);
+        play.value = true;
+        isPlay.value = true;
+        userPlayIntent.value = true;
+      }
+    };
+
+    /**
+     * 使用指定音源重新解析当前歌曲
+     */
+    const reparseCurrentSong = async (sourcePlatform: Platform, isAuto: boolean = false) => {
+      try {
+        const currentSong = playMusic.value;
+        if (!currentSong || !currentSong.id) {
+          console.warn('没有有效的播放对象');
+          return false;
+        }
+
+        // 使用 SongSourceConfigManager 保存配置
+        SongSourceConfigManager.setConfig(
+          currentSong.id,
+          [sourcePlatform],
+          isAuto ? 'auto' : 'manual'
+        );
+
+        const currentSound = audioService.getCurrentSound();
+        if (currentSound) {
+          currentSound.pause();
+        }
+
+        const numericId =
+          typeof currentSong.id === 'string' ? parseInt(currentSong.id, 10) : currentSong.id;
+
+        const songData = cloneDeep(currentSong);
+        const res = await getParsingMusicUrl(numericId, songData);
+
+        if (res && res.data && res.data.data && res.data.data.url) {
+          const newUrl = res.data.data.url;
+
+          const updatedMusic = {
+            ...currentSong,
+            playMusicUrl: newUrl,
+            expiredAt: Date.now() + 1800000
+          };
+
+          await handlePlayMusic(updatedMusic, true);
+
+          // 更新播放列表中的歌曲信息
+          const { usePlaylistStore } = await import('./playlist');
+          const playlistStore = usePlaylistStore();
+          playlistStore.updateSong(updatedMusic);
+
+          return true;
+        } else {
+          console.warn(`使用音源 ${sourcePlatform} 解析失败`);
+          return false;
+        }
+      } catch (error) {
+        console.error('重新解析失败:', error);
+        return false;
+      }
+    };
+
+    /**
+     * 初始化播放状态
+     */
+    const initializePlayState = async () => {
+      const { useSettingsStore } = await import('./settings');
+      const settingStore = useSettingsStore();
+
+      if (playMusic.value && Object.keys(playMusic.value).length > 0) {
+        try {
+          const isPlaying = settingStore.setData.autoPlay;
+
+          // 本地音乐（local:// 协议）不需要重新获取 URL，保留原始路径
+          const isLocalMusic = playMusic.value.playMusicUrl?.startsWith('local://');
+
+          await handlePlayMusic(
+            {
+              ...playMusic.value,
+              isFirstPlay: true,
+              playMusicUrl: isLocalMusic ? playMusic.value.playMusicUrl : undefined
+            },
+            isPlaying
+          );
+        } catch (error) {
+          console.error('重新获取音乐链接失败:', error);
+          play.value = false;
+          isPlay.value = false;
+          playMusic.value = {} as SongResult;
+          playMusicUrl.value = '';
+        }
+      }
+
+      setTimeout(() => {
+        audioService.setPlaybackRate(playbackRate.value);
+      }, 2000);
+    };
+
+    // ==================== 音频输出设备管理 ====================
+
+    /**
+     * 刷新可用音频输出设备列表
+     */
+    const refreshAudioDevices = async () => {
+      availableAudioDevices.value = await audioService.getAudioOutputDevices();
+    };
+
+    /**
+     * 切换音频输出设备
+     */
+    const setAudioOutputDevice = async (deviceId: string): Promise<boolean> => {
+      const success = await audioService.setAudioOutputDevice(deviceId);
+      if (success) {
+        audioOutputDeviceId.value = deviceId;
+      }
+      return success;
+    };
+
+    /**
+     * 初始化设备变化监听
+     */
+    const initAudioDeviceListener = () => {
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.addEventListener('devicechange', async () => {
+          await refreshAudioDevices();
+          const exists = availableAudioDevices.value.some(
+            (d) => d.deviceId === audioOutputDeviceId.value
+          );
+          if (!exists && audioOutputDeviceId.value !== 'default') {
+            await setAudioOutputDevice('default');
+          }
+        });
+      }
+    };
+
+    return {
+      // 状态
+      play,
+      isPlay,
+      playMusic,
+      playMusicUrl,
+      musicFull,
+      playbackRate,
+      volume,
+      userPlayIntent,
+      isFmPlaying,
+      audioOutputDeviceId,
+      availableAudioDevices,
+
+      // Computed
+      currentSong,
+      isPlaying,
+
+      // Actions
+      setIsPlay,
+      setMusicFull,
+      setPlayMusic,
+      setPlaybackRate,
+      setVolume,
+      getVolume,
+      increaseVolume,
+      decreaseVolume,
+      handlePlayMusic,
+      playAudio,
+      handlePause,
+      checkPlaybackState,
+      reparseCurrentSong,
+      initializePlayState,
+      refreshAudioDevices,
+      setAudioOutputDevice,
+      initAudioDeviceListener
+    };
+  },
+  {
+    persist: {
+      key: 'player-core-store',
+      storage: localStorage,
+      pick: ['playMusic', 'playMusicUrl', 'playbackRate', 'volume', 'isPlay', 'audioOutputDeviceId']
+    }
+  }
+);

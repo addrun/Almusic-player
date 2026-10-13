@@ -1,0 +1,7 @@
+[
+  { "key": "neonUseCoverColor", "type": "boolean", "label": "跟随封面取色", "default": true },
+  { "key": "neonCustomColor", "type": "color", "label": "自定义颜色", "default": "#c9a96e" },
+  { "type": "divider" },
+  { "key": "neonBeatIntensity", "type": "slider", "label": "鼓点闪烁强度", "min": 0, "max": 100, "step": 5, "marks": ["无", "强"], "default": 50 },
+  { "key": "neonBackgroundBrightness", "type": "slider", "label": "背景亮度", "min": 10, "max": 60, "step": 5, "marks": ["暗", "亮"], "default": 25 }
+]

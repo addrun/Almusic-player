@@ -1,0 +1,11 @@
+[
+  { "key": "showTranslation", "type": "boolean", "label": "显示翻译", "default": true },
+  { "key": "animationIntensity", "type": "radio", "label": "歌词动画幅度", "options": [
+    { "value": "soft", "label": "柔和" },
+    { "value": "normal", "label": "正常" },
+    { "value": "power", "label": "力量" }
+  ], "default": "normal" },
+  { "type": "divider" },
+  { "key": "stageBeatFlash", "type": "boolean", "label": "开启高潮闪光", "default": true },
+  { "key": "stageFlashIntensity", "type": "slider", "label": "闪光强度", "min": 0.1, "max": 1.0, "step": 0.05, "marks": ["弱", "强"], "default": 0.5, "showWhen": { "key": "stageBeatFlash", "is": "true" } }
+]

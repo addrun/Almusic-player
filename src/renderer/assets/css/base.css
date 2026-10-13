@@ -1,0 +1,20 @@
+body {
+  /* background-color: #000; */
+  overflow: hidden;
+}
+
+.n-popover:has(.music-play) {
+  border-radius: 1.5rem !important;
+}
+.n-popover {
+  border-radius: 0.5rem !important;
+  overflow: hidden !important;
+}
+.n-popover:has(.transparent-popover) {
+  background-color: transparent !important;
+  padding: 0 !important;
+}
+
+.settings-slider .n-slider-mark {
+  font-size: 10px !important;
+}

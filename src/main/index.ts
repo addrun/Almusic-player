@@ -1,0 +1,228 @@
+import { electronApp, optimizer } from '@electron-toolkit/utils';
+import { app, ipcMain, nativeImage, session } from 'electron';
+import { join } from 'path';
+
+import type { Language } from '../i18n/main';
+import i18n from '../i18n/main';
+import { loadLyricWindow } from './lyric';
+import { initializeKugou } from './kugou';
+import { initializeCacheManager } from './modules/cache';
+import { initializeConfig } from './modules/config';
+import { initializeFileManager } from './modules/fileManager';
+import { initializeFonts } from './modules/fonts';
+import { initializeLocalMusicScanner } from './modules/localMusicScanner';
+import { initializeLoginWindow } from './modules/loginWindow';
+import { initLxMusicHttp } from './modules/lxMusicHttp';
+import { initializeOtherApi } from './modules/otherApi';
+import { initializePluginManager } from './modules/pluginManager';
+import { initializeRemoteControl } from './modules/remoteControl';
+import { initializeShortcuts } from './modules/shortcuts';
+import { initializeTray, updateCurrentSong, updatePlayState, updateTrayMenu } from './modules/tray';
+import { setupUpdateHandlers } from './modules/update';
+import { createMainWindow, initializeWindowManager, setAppQuitting } from './modules/window';
+import { initWindowSizeManager } from './modules/window-size';
+import { startMusicApi } from './server';
+
+// 启用 MediaSessionService 以支持 SMTC，禁用 MediaRouter 避免冲突
+app.commandLine.appendSwitch('enable-features', 'MediaSessionService');
+app.commandLine.appendSwitch('disable-features', 'MediaRouterMediaSink');
+
+// 导入所有图标
+const iconPath = join(__dirname, '../../resources');
+const icon = nativeImage.createFromPath(
+  process.platform === 'darwin' ? join(iconPath, 'icon.icns') : join(iconPath, 'icon.png')
+);
+
+let mainWindow: Electron.BrowserWindow;
+
+// 初始化应用
+function initialize(configStore: any) {
+  // 使用已初始化的配置存储
+  const store = configStore;
+
+  // 设置初始语言
+  const savedLanguage = store.get('set.language') as Language;
+  if (savedLanguage) {
+    i18n.global.locale = savedLanguage;
+  }
+
+  // 初始化文件管理
+  initializeFileManager();
+  // 初始化歌词缓存管理
+  initializeCacheManager();
+  // 初始化其他 API （搜索建议等）
+  initializeOtherApi();
+  // 初始化窗口管理
+  initializeWindowManager();
+  // 初始化字体管理
+  initializeFonts();
+  // 初始化登录窗口
+  initializeLoginWindow();
+  // 初始化本地音乐扫描模块
+  initializeLocalMusicScanner();
+  // 初始化插件管理器
+  initializePluginManager();
+
+  // 创建主窗口
+  mainWindow = createMainWindow(icon);
+
+  // 酷狗账号及只读云歌单同步（凭据仅保存在主进程）。
+  initializeKugou(mainWindow);
+
+  // 初始化托盘
+  initializeTray(iconPath, mainWindow);
+
+  // 启动音乐API
+  startMusicApi();
+
+  // 初始化落雪音乐 HTTP 请求处理
+  initLxMusicHttp();
+
+  // 加载歌词窗口
+  loadLyricWindow(ipcMain, mainWindow);
+
+  // 初始化快捷键
+  initializeShortcuts(mainWindow);
+
+  // 初始化远程控制服务
+  initializeRemoteControl(mainWindow);
+
+  // 初始化更新处理程序
+  setupUpdateHandlers(mainWindow);
+}
+
+// 检查是否为第一个实例
+const isSingleInstance = app.requestSingleInstanceLock();
+
+if (!isSingleInstance) {
+  app.quit();
+} else {
+  // 在应用准备就绪前初始化GPU加速设置
+  // 必须在 app.ready 之前调用 disableHardwareAcceleration
+  try {
+    // 初始化配置管理以获取GPU加速设置
+    const store = initializeConfig();
+    const enableGpuAcceleration = store.get('set.enableGpuAcceleration', true) as boolean;
+
+    if (!enableGpuAcceleration) {
+      app.disableHardwareAcceleration();
+    } else {
+    }
+  } catch (error) {
+    console.error('GPU加速设置初始化失败:', error);
+    // 如果配置读取失败，默认启用GPU加速
+  }
+  // 当第二个实例启动时，将焦点转移到第一个实例的窗口
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  // 应用程序准备就绪时的处理
+  app.whenReady().then(() => {
+    // 设置应用ID
+    electronApp.setAppUserModelId('mysterious-shhr.AlmusicPlayer');
+
+    // 防止网络服务崩溃导致闪退
+    app.on('child-process-gone', (_event, details) => {
+      if (details.type === 'utility' && details.reason === 'crashed') {
+        console.warn('[Main] Network service crashed, Electron will auto-restart it');
+      }
+    });
+
+    // 监听窗口创建事件
+    app.on('browser-window-created', (_, window) => {
+      optimizer.watchWindowShortcuts(window);
+
+      // 防止渲染进程崩溃导致闪退
+      window.webContents.on('render-process-gone', (_event, details) => {
+        console.error('[Main] Render process gone:', details.reason);
+      });
+    });
+
+    // 初始化窗口大小管理器
+    initWindowSizeManager();
+
+    // 设置媒体设备权限 - 允许枚举音频输出设备
+    session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+      if (permission === ('media' as any) || permission === ('audioCapture' as any)) {
+        callback(true);
+        return;
+      }
+      callback(true);
+    });
+
+    session.defaultSession.setPermissionCheckHandler(() => {
+      return true;
+    });
+
+    // 重新初始化配置管理以获取完整的配置存储
+    const store = initializeConfig();
+
+    // 初始化应用
+    initialize(store);
+
+    // macOS 激活应用时的处理
+    app.on('activate', () => {
+      if (mainWindow === null) initialize(store);
+    });
+  });
+
+  // 监听语言切换
+  ipcMain.on('change-language', (_, locale: Language) => {
+    // 更新主进程的语言设置
+    i18n.global.locale = locale;
+    // 更新托盘菜单
+    updateTrayMenu(mainWindow);
+    // 通知所有窗口语言已更改
+    mainWindow?.webContents.send('language-changed', locale);
+  });
+
+  // 监听播放状态变化
+  ipcMain.on('update-play-state', (_, playing: boolean) => {
+    updatePlayState(playing);
+  });
+
+  // 监听当前歌曲变化
+  ipcMain.on('update-current-song', (_, song: any) => {
+    updateCurrentSong(song);
+  });
+
+  // 所有窗口关闭时的处理
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+
+  // 防止未捕获异常导致闪退
+  process.on('uncaughtException', (error) => {
+    console.error('[Main] Uncaught exception:', error.message);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    console.error('[Main] Unhandled rejection:', reason);
+  });
+
+  // 应用即将退出时的处理
+  app.on('before-quit', () => {
+    // 设置退出标志
+    setAppQuitting(true);
+  });
+
+  // 重启应用
+  ipcMain.on('restart', () => {
+    app.relaunch();
+    app.exit(0);
+  });
+
+  // 获取系统架构信息
+  ipcMain.on('get-arch', (event) => {
+    event.returnValue = process.arch;
+  });
+}

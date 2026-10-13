@@ -1,0 +1,58 @@
+{
+  "purpose": "In-process Windows DWM/GDI taskbar thumbnail; Windows x64 only.",
+  "installationScriptsExecuted": false,
+  "sources": [
+    {
+      "name": "koffi",
+      "version": "3.3.3",
+      "registry": "https://registry.npmjs.org/koffi/3.3.3",
+      "tarball": "https://registry.npmjs.org/koffi/-/koffi-3.3.3.tgz",
+      "integrity": "sha512-XWNI4eyxJJzR2MakPZzR3QeZ06JOklLbxglin0dHhx/qIQCby8lqHs9Acq4Q7CpCKnOrBSj+6b9J5y69wfr2ZA==",
+      "archiveSHA256": "c53f8da8e3c916ae8d666256650916768c7c4e8a579f188d794e8371b5773308",
+      "license": "MIT",
+      "installationScriptsExecuted": false
+    },
+    {
+      "name": "@koromix/koffi-win32-x64",
+      "version": "3.3.3",
+      "registry": "https://registry.npmjs.org/@koromix/koffi-win32-x64/3.3.3",
+      "tarball": "https://registry.npmjs.org/@koromix/koffi-win32-x64/-/koffi-win32-x64-3.3.3.tgz",
+      "integrity": "sha512-tLTF17wl4CCwOlo1Tt0NbduwUduDvM6c8JSyearcLu6hpNHQo44RF3rKN2i7UkxwCqXyiudZK0lS421CC/TPZA==",
+      "archiveSHA256": "6f3601e24e865ede500dad7fefdc545bf305862185430ecd078ffca4c2962da4",
+      "license": "MIT",
+      "installationScriptsExecuted": false
+    }
+  ],
+  "shippedFiles": [
+    {
+      "path": "LICENSE.txt",
+      "original": "koffi-3.3.3/package/LICENSE.txt",
+      "bytes": 1117,
+      "sha256": "22bcbbbacd739b026a8dc484f62a31484ce4c4e31f3408b60b29b4e41d62b290"
+    },
+    {
+      "path": "koffi/index.cjs",
+      "original": "koffi-3.3.3/package/index.cjs",
+      "bytes": 50,
+      "sha256": "a200e15ec168d00cb3155794808a98243051c61dd7f6989c23c57ee220c918b9"
+    },
+    {
+      "path": "koffi/src/koffi/index.cjs",
+      "original": "koffi-3.3.3/package/src/koffi/index.cjs",
+      "bytes": 10999,
+      "sha256": "36c3d1ee2d0bf767c1c1acd9c00c71361496bdfd05c4519d08cab5afcccae170"
+    },
+    {
+      "path": "koffi/src/koffi/src/static.cjs",
+      "original": "koffi-3.3.3/package/src/koffi/src/static.cjs",
+      "bytes": 3591,
+      "sha256": "522a9d98e271b565de4013910b8c81bb061a34d3460e43fd9a92daab8fbadddc"
+    },
+    {
+      "path": "koffi/build/koffi/win32_x64/koffi.node",
+      "original": "koffi-win32-x64-3.3.3/package/win32_x64/koffi.node",
+      "bytes": 1049600,
+      "sha256": "f7af4982457657d2e7ad46acb076614ed7122d6efbdbfbc75f21ec12681fa121"
+    }
+  ]
+}

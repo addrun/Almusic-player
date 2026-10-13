@@ -1,0 +1,382 @@
+// 本地音乐扫描模块
+// 负责文件系统递归扫描和音乐文件元数据提取，通过 IPC 暴露给渲染进程
+
+import { ipcMain } from 'electron';
+import * as fs from 'fs';
+import * as mm from 'music-metadata';
+import * as os from 'os';
+import * as path from 'path';
+
+/** 支持的音频文件格式 */
+const SUPPORTED_AUDIO_FORMATS = ['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.aac'] as const;
+const METADATA_PARSE_CONCURRENCY = Math.min(8, Math.max(2, os.cpus().length));
+const MAX_COVER_BYTES = 5 * 1024 * 1024;
+
+/**
+ * 主进程返回的原始音乐元数据
+ * 与渲染进程 LocalMusicMeta 类型保持一致
+ */
+type LocalMusicMeta = {
+  filePath: string;
+  title: string;
+  artist: string;
+  album: string;
+  duration: number;
+  cover: string | null;
+  lyrics: string | null;
+  fileSize: number;
+  modifiedTime: number;
+  diskNumber: number;
+  trackNumber: number;
+  year: number;
+};
+
+type ScannedMusicFile = {
+  path: string;
+  modifiedTime: number;
+};
+
+/**
+ * 判断文件扩展名是否为支持的音频格式
+ * @param ext 文件扩展名（含点号，如 .mp3）
+ * @returns 是否为支持的格式
+ */
+function isSupportedFormat(ext: string): boolean {
+  return (SUPPORTED_AUDIO_FORMATS as readonly string[]).includes(ext.toLowerCase());
+}
+
+function extractTitleFromFilename(filePath: string): string {
+  const basename = path.basename(filePath);
+  const dotIndex = basename.lastIndexOf('.');
+  if (dotIndex > 0) return basename.slice(0, dotIndex);
+  return basename;
+}
+
+function extractTrackNumberFromFilename(filePath: string): number {
+  const basename = path.basename(filePath);
+  const nameWithoutExt = basename.replace(/\.[^.]+$/, '');
+  const match = nameWithoutExt.match(/^(\d+)/);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    if (num > 0 && num < 1000) return num;
+  }
+  return 0;
+}
+
+function extractYearFromFilename(filePath: string): number {
+  const basename = path.basename(filePath);
+  const match = basename.match(/\[?(19|20)\d{2}\]?/);
+  if (match) return parseInt(match[0].replace(/[\[\]()]/g, ''), 10);
+  return 0;
+}
+
+/**
+ * 将封面图片数据转换为 base64 Data URL
+ * @param picture music-metadata 解析出的封面图片对象
+ * @returns base64 Data URL 字符串，转换失败返回 null
+ */
+function extractCoverAsDataUrl(picture: mm.IPicture | undefined): string | null {
+  if (!picture) {
+    return null;
+  }
+  try {
+    if (picture.data.length > MAX_COVER_BYTES) {
+      return null;
+    }
+    const mime = picture.format ?? 'image/jpeg';
+    const base64 = Buffer.from(picture.data).toString('base64');
+    return `data:${mime};base64,${base64}`;
+  } catch (error) {
+    console.error('封面提取失败:', error);
+    return null;
+  }
+}
+
+/**
+ * 从 music-metadata 解析结果中提取歌词文本
+ * @param lyrics music-metadata 解析出的歌词数组
+ * @returns 歌词文本，提取失败返回 null
+ */
+function extractLyrics(lyrics: mm.ILyricsTag[] | undefined): string | null {
+  if (!lyrics || lyrics.length === 0) return null;
+  try {
+    // 优先使用 syncText（时间戳歌词）
+    const syncLyric = lyrics.find((l) => l.syncText && l.syncText.length > 0);
+    if (syncLyric?.syncText) {
+      return syncLyric.syncText.map((line) => {
+        const mm = Math.floor(line.timestamp / 60000);
+        const ss = Math.floor((line.timestamp % 60000) / 1000);
+        const ms = Math.floor(line.timestamp % 1000);
+        return `[${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}.${String(ms).padStart(3, '0')}]${line.text || ''}`;
+      }).join('\n');
+    }
+    // 回退到纯文本歌词
+    const textLyric = lyrics.find((l) => l.text);
+    if (textLyric?.text) {
+      return Array.isArray(textLyric.text) ? textLyric.text.join('\n') : textLyric.text;
+    }
+    return null;
+  } catch (error) {
+    console.error('歌词提取失败:', error);
+    return null;
+  }
+}
+
+/**
+ * 递归扫描指定文件夹，返回所有支持格式的音乐文件路径
+ * @param folderPath 要扫描的文件夹路径
+ * @returns 音乐文件绝对路径列表
+ */
+async function scanMusicFiles(folderPath: string): Promise<string[]> {
+  const results: string[] = [];
+
+  // 检查文件夹是否存在
+  if (!fs.existsSync(folderPath)) {
+    throw new Error(`文件夹不存在: ${folderPath}`);
+  }
+
+  // 检查是否为目录
+  const stat = await fs.promises.stat(folderPath);
+  if (!stat.isDirectory()) {
+    throw new Error(`路径不是文件夹: ${folderPath}`);
+  }
+
+  /**
+   * 递归遍历目录
+   * @param dirPath 当前目录路径
+   */
+  async function walkDirectory(dirPath: string): Promise<void> {
+    try {
+      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+
+        if (entry.isDirectory()) {
+          // 递归扫描子目录
+          await walkDirectory(fullPath);
+        } else if (entry.isFile()) {
+          // 检查文件扩展名是否为支持的音频格式
+          const ext = path.extname(entry.name);
+          if (isSupportedFormat(ext)) {
+            results.push(fullPath);
+          }
+        }
+      }
+    } catch (error) {
+      // 单个目录读取失败不中断整体扫描，记录错误后继续
+      console.error(`扫描目录失败: ${dirPath}`, error);
+    }
+  }
+
+  await walkDirectory(folderPath);
+  return results;
+}
+
+/**
+ * 递归扫描指定文件夹，返回包含修改时间的音乐文件信息
+ * @param folderPath 要扫描的文件夹路径
+ * @returns 音乐文件信息列表
+ */
+async function scanMusicFilesWithStats(folderPath: string): Promise<ScannedMusicFile[]> {
+  const results: ScannedMusicFile[] = [];
+
+  if (!fs.existsSync(folderPath)) {
+    throw new Error(`文件夹不存在: ${folderPath}`);
+  }
+
+  const stat = await fs.promises.stat(folderPath);
+  if (!stat.isDirectory()) {
+    throw new Error(`路径不是文件夹: ${folderPath}`);
+  }
+
+  async function walkDirectory(dirPath: string): Promise<void> {
+    try {
+      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+
+        if (entry.isDirectory()) {
+          await walkDirectory(fullPath);
+        } else if (entry.isFile()) {
+          const ext = path.extname(entry.name);
+          if (!isSupportedFormat(ext)) {
+            continue;
+          }
+
+          try {
+            const fileStat = await fs.promises.stat(fullPath);
+            results.push({
+              path: fullPath,
+              modifiedTime: fileStat.mtimeMs
+            });
+          } catch (error) {
+            console.error(`读取文件信息失败: ${fullPath}`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`扫描目录失败: ${dirPath}`, error);
+    }
+  }
+
+  await walkDirectory(folderPath);
+  return results;
+}
+
+/**
+ * 解析单个音乐文件的元数据
+ * 解析失败时使用 fallback 默认值（文件名作标题），不抛出异常
+ * @param filePath 音乐文件绝对路径
+ * @returns 音乐元数据对象
+ */
+async function parseMetadata(filePath: string): Promise<LocalMusicMeta> {
+  // 获取文件信息（大小和修改时间）
+  let fileSize = 0;
+  let modifiedTime = 0;
+  try {
+    const stat = await fs.promises.stat(filePath);
+    fileSize = stat.size;
+    modifiedTime = stat.mtimeMs;
+  } catch (error) {
+    console.error(`获取文件信息失败: ${filePath}`, error);
+  }
+
+  const fallbackTrackNo = extractTrackNumberFromFilename(filePath);
+  const fallbackYear = extractYearFromFilename(filePath);
+
+  const fallback: LocalMusicMeta = {
+    filePath,
+    title: extractTitleFromFilename(filePath),
+    artist: '未知艺术家',
+    album: '未知专辑',
+    duration: 0,
+    cover: null,
+    lyrics: null,
+    fileSize,
+    modifiedTime,
+    diskNumber: 0,
+    trackNumber: fallbackTrackNo,
+    year: fallbackYear
+  };
+
+  try {
+    const metadata = await mm.parseFile(filePath);
+    const { common, format } = metadata;
+
+    const trackNo = common.track?.no ?? fallbackTrackNo;
+    const diskNo = common.disk?.no ?? 0;
+    const yr = common.year ?? fallbackYear;
+
+    return {
+      filePath,
+      title: common.title || fallback.title,
+      artist: common.artist || fallback.artist,
+      album: common.album || fallback.album,
+      duration: format.duration ? Math.round(format.duration * 1000) : 0,
+      cover: extractCoverAsDataUrl(common.picture?.[0]),
+      lyrics: extractLyrics(common.lyrics),
+      fileSize,
+      modifiedTime,
+      diskNumber: diskNo,
+      trackNumber: trackNo,
+      year: yr
+    };
+  } catch (error) {
+    // 解析失败使用 fallback，不中断流程
+    console.error(`元数据解析失败，使用 fallback: ${filePath}`, error);
+    return fallback;
+  }
+}
+
+/**
+ * 批量解析音乐文件元数据
+ * 内部逐个调用 parseMetadata，单文件失败不影响其他文件
+ * @param filePaths 音乐文件路径列表
+ * @returns 元数据对象列表
+ */
+async function batchParseMetadata(filePaths: string[]): Promise<LocalMusicMeta[]> {
+  if (filePaths.length === 0) {
+    return [];
+  }
+
+  const results = new Array<LocalMusicMeta>(filePaths.length);
+  const workerCount = Math.min(METADATA_PARSE_CONCURRENCY, filePaths.length);
+  let index = 0;
+
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (index < filePaths.length) {
+      const current = index;
+      index += 1;
+      results[current] = await parseMetadata(filePaths[current]);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * 初始化本地音乐扫描模块
+ * 注册 IPC handler，供渲染进程调用
+ */
+export function initializeLocalMusicScanner(): void {
+  // 扫描指定文件夹中的音乐文件
+  ipcMain.handle('scan-local-music', async (_, folderPath: string) => {
+    try {
+      const files = await scanMusicFiles(folderPath);
+      return { files, count: files.length };
+    } catch (error: any) {
+      console.error('扫描本地音乐失败:', error);
+      return { error: error.message || '扫描失败' };
+    }
+  });
+
+  // 扫描指定文件夹中的音乐文件（包含修改时间）
+  ipcMain.handle('scan-local-music-with-stats', async (_, folderPath: string) => {
+    try {
+      const files = await scanMusicFilesWithStats(folderPath);
+      return { files, count: files.length };
+    } catch (error: any) {
+      console.error('扫描本地音乐(含文件信息)失败:', error);
+      return { error: error.message || '扫描失败' };
+    }
+  });
+
+  // 批量解析音乐文件元数据
+  ipcMain.handle('parse-local-music-metadata', async (_, filePaths: string[]) => {
+    try {
+      const metadataList = await batchParseMetadata(filePaths);
+      return metadataList;
+    } catch (error: any) {
+      console.error('解析本地音乐元数据失败:', error);
+      return [];
+    }
+  });
+
+  // 扫描目录下的歌词文件（.lrc, .ttml, .txt）
+  ipcMain.handle('scan-lyric-files', async (_, folderPath: string) => {
+    const LYRIC_EXTENSIONS = ['.lrc', '.ttml', '.txt'];
+    const lyricFiles: string[] = [];
+
+    const walk = async (dir: string) => {
+      try {
+        const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            await walk(fullPath);
+          } else if (LYRIC_EXTENSIONS.includes(path.extname(entry.name).toLowerCase())) {
+            lyricFiles.push(fullPath);
+          }
+        }
+      } catch (error) {
+        console.error(`扫描目录失败: ${dir}`, error);
+      }
+    };
+
+    await walk(folderPath);
+    return lyricFiles;
+  });
+}

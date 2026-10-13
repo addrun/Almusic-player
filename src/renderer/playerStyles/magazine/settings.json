@@ -1,0 +1,9 @@
+[
+  { "key": "gridRhythmClimaxBoost", "type": "boolean", "label": "高潮闪烁增强", "default": false },
+  { "key": "gridRhythmSize", "type": "radio", "label": "网格密度", "options": [
+    { "value": "small", "label": "密集" },
+    { "value": "medium", "label": "适中" },
+    { "value": "large", "label": "稀疏" }
+  ], "default": "medium" },
+  { "key": "gridRhythmColor", "type": "boolean", "label": "颜色反转", "default": false }
+]
