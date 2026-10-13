@@ -11,10 +11,26 @@ const hash = (value) => createHash('sha256').update(value).digest('hex');
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const pathRegex = (value) => new RegExp(value.split(/[\\/]+/).map(escapeRegex).join('[\\\\/]+'), 'i');
 const secretPatterns = [
-  ['private-key', /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/i],
-  ['provider-token', /(?:github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|npm_[A-Za-z0-9]{30,}|sk-(?:proj-)?[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16})/],
+  ['provider-token', /(?<![A-Za-z0-9_+/])(?:github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|npm_[A-Za-z0-9]{30,}|sk-(?:proj-)?[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16})(?![A-Za-z0-9_+/])/],
   ['frontend-github-token', new RegExp(['VITE', 'GITHUB', 'TOKEN'].join('_'), 'i')]
 ];
+
+// This upstream runtime configuration is required by the request/comment modules.
+// Only the exact public npm asset is exempt from the generic config.json filename rule.
+const publicConfigurationHashes = new Map([
+  ['node_modules/netease-cloud-music-api-alger/util/config.json', 'e6bf432295bf61914427aee5dc76f3f35dc6532923fe9756da1a7ad91997729a']
+]);
+
+export function containsPrivateKey(text) {
+  const normalized = text.replace(/\\r\\n|\\n|\\r/g, '\n');
+  // A PEM export routine contains only the marker. Require actual encoded key bytes,
+  // including truncated key disclosures; retain support for encrypted PEM headers.
+  const pattern = /-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----[\r\n\t ]+(?:(?:Proc-Type|DEK-Info):[^\r\n]*[\r\n\t ]+)*([A-Za-z0-9+/=\r\n\t ]{64,})/gi;
+  for (const match of normalized.matchAll(pattern)) {
+    if (match[1].replace(/\s/g, '').length >= 64) return true;
+  }
+  return false;
+}
 
 function safeArchivePath(value) {
   if (!value || value.includes('\\') || value.startsWith('/') || value.split('/').some((part) => !part || part === '.' || part === '..')) {
@@ -83,6 +99,7 @@ export function auditPackagedApp(rootInput, options = {}) {
   const findings = [];
   const review = [];
   const inventory = [];
+  const publicAssets = [];
   const seen = new Set();
   const sensitivePaths = [...(options.privatePaths || [])];
   if (!process.env.CI) sensitivePaths.push(process.env.USERPROFILE, homedir(), resolve(dirname(fileURLToPath(import.meta.url)), '..'));
@@ -95,8 +112,14 @@ export function auditPackagedApp(rootInput, options = {}) {
     if (!seen.has(key)) { seen.add(key); target.push({ path, rule }); }
   };
   function inspect(path, bytes) {
-    for (const reason of forbiddenPath(path)) add(findings, path, reason);
-    inventory.push({ path, bytes: bytes.length, sha256: hash(bytes) });
+    const sha256 = hash(bytes);
+    const publicPath = path.replace(/^app\.asar(?:\.unpacked)?\//, '');
+    const knownPublicConfiguration = publicConfigurationHashes.get(publicPath) === sha256;
+    for (const reason of forbiddenPath(path)) {
+      if (reason === 'runtime-account-file' && knownPublicConfiguration) publicAssets.push({ path, rule: 'verified-public-runtime-configuration', sha256 });
+      else add(findings, path, reason);
+    }
+    inventory.push({ path, bytes: bytes.length, sha256 });
     // Scan text and native binaries. UTF-16LE strings may appear in PE resources.
     const contents = [bytes.toString('utf8'), bytes.toString('utf16le')];
     if (path.endsWith('.gz')) {
@@ -105,6 +128,7 @@ export function auditPackagedApp(rootInput, options = {}) {
     }
     for (const text of contents) {
       for (const [rule, pattern] of secretPatterns) if (pattern.test(text)) add(findings, path, rule);
+      if (containsPrivateKey(text)) add(findings, path, 'private-key');
       if (homePatterns.some((pattern) => pattern.test(text))) add(findings, path, 'private-home-or-local-build-path');
       if (/WEISTUDIOWEI@126\.com/i.test(text)) add(findings, path, 'legacy-personal-email');
       if (/(?:hm\.baidu\.com\/hm\.js|google-analytics\.com|googletagmanager\.com\/gtag|cnzz\.com\/)/i.test(text)) add(review, path, 'analytics-review');
@@ -164,6 +188,7 @@ export function auditPackagedApp(rootInput, options = {}) {
     filesScanned: inventory.length,
     findings,
     review,
+    publicAssets,
     inventory,
     limitations: 'Pattern checks and file inventory do not prove the absence of all sensitive data. Review candidates require human assessment. This check does not inspect the installer container or run the application.'
   };

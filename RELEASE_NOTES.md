@@ -1,4 +1,4 @@
-# Almusic Player v0.1.2
+# Almusic Player v0.1.3
 
 Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-player) / [AlgerMusicPlayer](https://github.com/algerkong/AlgerMusicPlayer)，保留网易云、本地音乐、逐字歌词和六种全屏视觉，增加酷狗云端歌单管理与桌面交互。
 
@@ -6,14 +6,16 @@ Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-pla
 
 ## 下载
 
-- 大多数 Windows 电脑选择 `Almusic-0.1.2-win-x64.exe`；32 位和 ARM64 电脑选择对应 `ia32` / `arm64` 文件。
+- 大多数 Windows 电脑选择 `Almusic-0.1.3-win-x64.exe`；32 位和 ARM64 电脑选择对应 `ia32` / `arm64` 文件。
 - macOS Intel 选择 `mac-x64.dmg`，Apple Silicon 选择 `mac-arm64.dmg`；也提供 ZIP。
 - Linux x64 / ARM64 提供 AppImage、DEB 和 RPM，按系统与架构选择。
 - `.blockmap`、`latest*.yml` 是自动更新辅助文件，`SHA256SUMS.txt` 可用于核对下载完整性；Source code 是源码归档。
 
 Windows 和 macOS 安装包未做商业代码签名，macOS 未经 Apple 公证。构建及资源检查不代表已在全部设备完成实际播放或真实账号验收；任务栏信息卡仍限 Windows x64。
 
-## 0.1.2 打包与发布
+## 0.1.3 打包与发布
+
+0.1.2 首轮构建被应用资源隐私检查拦截，未发布安装包。0.1.3 清理依赖中的非运行资源，并固定每个任务的架构后使用新标签重新构建。
 
 - 增加七个平台与架构的构建、隐私检查及发布流程；自动更新清单在汇总阶段合并，资产带 SHA256 校验和。
 - 使用官方依赖与打包工具下载源，锁定依赖版本与原有完整性值。

@@ -8,7 +8,7 @@
 
 **桌面音乐播放器 · 酷狗云端歌单同步 · 多音源播放 · 沉浸式歌词**
 
-[![Version](https://img.shields.io/badge/version-0.1.2-blue)](https://github.com/mysterious-shhr/Almusic-player/releases)
+[![Version](https://img.shields.io/badge/version-0.1.3-blue)](https://github.com/mysterious-shhr/Almusic-player/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Vue](https://img.shields.io/badge/Vue_3.5-42b883?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript_5.9-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -118,11 +118,11 @@ Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-pla
 
 ## 下载与开发
 
-**当前版本为 0.1.2。** 从 [Releases](https://github.com/mysterious-shhr/Almusic-player/releases) 的 Assets 下载对应系统的 Almusic 安装包。发布流程在 Windows、macOS 和 Linux 构建环境生成安装包，检查应用资源的隐私与更新清单，再汇总发布；某个标签是否已完成构建，以该 Release 实际列出的文件及 [构建记录](https://github.com/mysterious-shhr/Almusic-player/actions/workflows/release.yml) 为准。
+**当前版本为 0.1.3。** 从 [Releases](https://github.com/mysterious-shhr/Almusic-player/releases) 的 Assets 下载对应系统的 Almusic 安装包。发布流程在 Windows、macOS 和 Linux 构建环境生成安装包，检查应用资源的隐私与更新清单，再汇总发布；某个标签是否已完成构建，以该 Release 实际列出的文件及 [构建记录](https://github.com/mysterious-shhr/Almusic-player/actions/workflows/release.yml) 为准。
 
 | 系统 | 架构 | 下载文件 |
 | --- | --- | --- |
-| Windows | x64（大多数 Intel / AMD 电脑） | `Almusic-0.1.2-win-x64.exe` |
+| Windows | x64（大多数 Intel / AMD 电脑） | `Almusic-0.1.3-win-x64.exe` |
 | Windows | ia32（32 位） / ARM64 | 对应 `win-ia32.exe` / `win-arm64.exe` |
 | macOS | Intel x64 / Apple Silicon ARM64 | 对应 `mac-x64.dmg` / `mac-arm64.dmg`，也提供 ZIP |
 | Linux | x64 / ARM64 | 对应架构的 `.AppImage`、`.deb` 或 `.rpm` |

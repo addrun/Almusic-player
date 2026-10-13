@@ -8,7 +8,7 @@ on:
       tag:
         description: Existing release tag to build
         required: true
-        default: v0.1.2
+        default: v0.1.3
         type: string
 
 permissions:
@@ -63,10 +63,14 @@ jobs:
         run: |
           npm test
           node --test scripts/test-release-artifacts.mjs
+          node --test scripts/test-release-builder-config.mjs
+          node --test scripts/test-release-updater.mjs
           node scripts/test-packaged-privacy.mjs
       - run: npm run build
       - name: Package unsigned desktop app
-        run: npx --no-install electron-builder --${{ matrix.flag }} --${{ matrix.arch }} --publish never -c.directories.output=dist/${{ matrix.platform }}-${{ matrix.arch }}
+        run: |
+          node scripts/release-builder-config.mjs ${{ matrix.platform }} ${{ matrix.arch }} dist/release-builder-${{ matrix.platform }}-${{ matrix.arch }}.json
+          npx --no-install electron-builder --${{ matrix.flag }} --${{ matrix.arch }} --publish never --config dist/release-builder-${{ matrix.platform }}-${{ matrix.arch }}.json
       - name: Audit packaged application
         env:
           TARGET_PLATFORM: ${{ matrix.platform }}

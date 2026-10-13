@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
+import { generateKeyPairSync } from 'node:crypto';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { auditPackagedApp, readAsarEntries } from './audit-packaged-app.mjs';
+import { auditPackagedApp, containsPrivateKey, readAsarEntries } from './audit-packaged-app.mjs';
 
 function syntheticAsar(root, files) {
   mkdirSync(root, { recursive: true });
@@ -48,6 +49,28 @@ try {
   assert.equal(cleanReport.filesScanned, 4); checks += 1;
   assert.equal(readAsarEntries(join(clean, 'app.asar')).length, 3); checks += 1;
   assert.equal(JSON.stringify(cleanReport).includes(temporary), false); checks += 1;
+  const privateKey = generateKeyPairSync('rsa', { modulusLength: 1024, privateKeyEncoding: { type: 'pkcs1', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } }).privateKey;
+  assert.equal(containsPrivateKey(privateKey), true); checks += 1;
+  assert.equal(containsPrivateKey(JSON.stringify(privateKey)), true); checks += 1;
+  const rsaMarker = ['-----BEGIN', 'RSA PRIVATE KEY-----'].join(' ');
+  const sampleMarker = ['-----BEGIN', 'PRIVATE KEY-----'].join(' ');
+  const sampleEnd = ['-----END', 'PRIVATE KEY-----'].join(' ');
+  assert.equal(containsPrivateKey(`const marker = "${rsaMarker}\\n"; marker += getEncodedKey();`), false); checks += 1;
+  assert.equal(containsPrivateKey(`${sampleMarker}\nYWFh\n${sampleEnd}`), false); checks += 1;
+
+  const lexical = join(temporary, 'lexical');
+  const awsLikeFixture = `AKIA${'A'.repeat(16)}`;
+  syntheticAsar(lexical, [
+    ['out/main/index.js', `const wasmBase64 = 'AAA${awsLikeFixture}AAA';\nconst marker = "${rsaMarker}\\n";`]
+  ]);
+  assert.equal(auditPackagedApp(lexical).result, 'pass'); checks += 1;
+
+  const actualKey = join(temporary, 'actual-key');
+  syntheticAsar(actualKey, [['out/main/index.js', JSON.stringify({ pem: privateKey, token: awsLikeFixture })]]);
+  const actualKeyReport = auditPackagedApp(actualKey);
+  assert(actualKeyReport.findings.some((finding) => finding.rule === 'private-key')); checks += 1;
+  assert(actualKeyReport.findings.some((finding) => finding.rule === 'provider-token')); checks += 1;
+  assert.equal(JSON.stringify(actualKeyReport).includes(privateKey), false); checks += 1;
 
   const leaked = join(temporary, 'leaked');
   const fakeHome = ['C:', 'Users', 'private-fixture-user', 'Documents'].join(String.fromCharCode(92));
@@ -58,6 +81,7 @@ try {
     ['out/renderer/index.js.gz', gzipSync(Buffer.from(fakeHome))],
     ['resources/.env.production', 'API_KEY=placeholder'],
     ['resources/tests/accounts.json', '{}'],
+    ['node_modules/netease-cloud-music-api-alger/util/config.json', '{}'],
     ['out/main/index.js.map', '{}']
   ]);
   writeFileSync(join(leaked, 'Cookies'), 'private fixture');
@@ -70,6 +94,7 @@ try {
     ['app.asar/out/renderer/index.js.gz', 'private-home-or-local-build-path'],
     ['app.asar/resources/.env.production', 'environment-file'],
     ['app.asar/resources/tests/accounts.json', 'development-fixture-or-account-directory'],
+    ['app.asar/node_modules/netease-cloud-music-api-alger/util/config.json', 'runtime-account-file'],
     ['app.asar/out/main/index.js.map', 'source-map'],
     ['Cookies', 'runtime-account-file']
   ]) { assert(leakReport.findings.some((finding) => finding.path === path && finding.rule === rule)); checks += 1; }
