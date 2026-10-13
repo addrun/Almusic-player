@@ -7,7 +7,7 @@
   >
     <div class="splash-frame" aria-hidden="true"></div>
 
-    <main class="splash-content" role="status" aria-label="Almusic Player 正在启动">
+    <main class="splash-content" role="status" aria-label="Almusic 正在启动">
       <svg
         class="splash-mark"
         width="184"
@@ -55,8 +55,8 @@
         <path d="M72 142H112" stroke="currentColor" stroke-width="0.8" opacity="0.2" />
       </svg>
 
-      <p class="splash-wordmark">Almusic Player</p>
-      <h1 class="splash-title">Almusic Player</h1>
+      <p class="splash-wordmark">Almusic</p>
+      <h1 class="splash-title">Almusic</h1>
       <p class="splash-caption">让音乐，随风而来。</p>
     </main>
 

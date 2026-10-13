@@ -129,7 +129,7 @@ export function initializeTaskbar(
     try {
       const tooltip = state.title
         ? `${state.title}${state.artist ? ` — ${state.artist}` : ''}`
-        : 'Almusic Player';
+        : 'Almusic';
       if (force || tooltip !== lastTooltip) {
         window.setThumbnailToolTip(tooltip);
         lastTooltip = tooltip;

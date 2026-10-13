@@ -12,6 +12,10 @@ node_modules/.bin/tsc.cmd -p tests/tsconfig.kugou.json
 The runner reuses the installed Vite/esbuild dependency and Node's built-in test
 runner. It does not install another test framework.
 
+The application-identity suite also checks renamed and legacy profile selection
+using a virtual filesystem and Electron fixture; it never reads existing profile
+files or creates directories under a real user's app-data folder.
+
 These checks exercise real pagination, response conversion, source merging,
 main-process projection, cache selection, cancellation and IPC validation code.
 Network responses are explicit isolated fixtures, including a 751-song list,

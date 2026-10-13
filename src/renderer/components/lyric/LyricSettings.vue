@@ -716,7 +716,7 @@ defineExpose({
   background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 .preview-default::after {
-  content: 'Almusic Player';
+  content: 'Almusic';
   position: absolute;
   right: 8px;
   top: 30%;
@@ -739,7 +739,7 @@ defineExpose({
   background: radial-gradient(circle at 50% 40%, rgba(200, 160, 120, 0.2) 0%, transparent 60%);
 }
 .preview-classic::after {
-  content: 'Almusic Player';
+  content: 'Almusic';
   position: absolute;
   top: 50%;
   left: 50%;
@@ -762,7 +762,7 @@ defineExpose({
   background: radial-gradient(circle at 50% 60%, rgba(255, 200, 100, 0.3) 0%, transparent 50%);
 }
 .preview-stage::after {
-  content: 'Almusic Player';
+  content: 'Almusic';
   position: absolute;
   top: 50%;
   left: 50%;
@@ -779,7 +779,7 @@ defineExpose({
   overflow: hidden;
 }
 .preview-magazine::before {
-  content: 'Almusic Player';
+  content: 'Almusic';
   position: absolute;
   left: 4px;
   top: 50%;

@@ -306,7 +306,7 @@ class SmartMixService {
           ''
         )}`;
       }
-      document.title = 'Almusic Player - ' + title;
+      document.title = 'Almusic - ' + title;
 
       // 添加到播放历史
       try {

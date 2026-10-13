@@ -1,10 +1,16 @@
 {
-  "name": "Almusic Player PWA",
+  "name": "Almusic",
+  "short_name": "Almusic",
   "icons": [
+    {
+      "src": "./icon_192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
     {
       "src": "./icon.png",
       "type": "image/png",
-      "sizes": "256x256"
+      "sizes": "512x512"
     }
   ]
 }

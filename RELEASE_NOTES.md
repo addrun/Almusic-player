@@ -1,8 +1,23 @@
-# Almusic Player v0.1.0
+# Almusic Player v0.1.1
 
 Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-player) / [AlgerMusicPlayer](https://github.com/algerkong/AlgerMusicPlayer)，保留网易云、本地音乐、逐字歌词和六种全屏视觉，增加酷狗云端歌单管理与桌面交互。
 
-**这是本分支的首次源码发布，暂无预编译安装包。** 项目地址：[mysterious-shhr/Almusic-player](https://github.com/mysterious-shhr/Almusic-player)。建议使用 Node.js 22 LTS（至少 22.12），运行 `npm ci` 后可使用 `npm run dev` 或 `npm run build`。
+**本文件为 0.1.1 发布说明准备稿；GitHub 同步与安装包状态以仓库和 Releases 的实际内容为准。** 项目地址：[mysterious-shhr/Almusic-player](https://github.com/mysterious-shhr/Almusic-player)。建议使用 Node.js 22 LTS（至少 22.12），运行 `npm ci` 后可使用 `npm run dev` 或 `npm run build`。
+
+## 0.1.1 更名与图标维护
+
+- 项目名为 Almusic Player，软件名为 Almusic；源码统一窗口、托盘、开屏、移动页面、任务栏信息卡及新构建安装 / 卸载器配置。已有安装器的内嵌脚本需重新打包。
+- 更换全部应用品牌图标，包括更新 / 安装对话框 PNG、favicon、多尺寸 Windows ICO、macOS ICNS 和 PWA 图标。
+- 改名时优先已有 Almusic 用户数据目录，否则沿用已有 ZephyrusPlayer 目录；新安装使用 Almusic，保持已有账号、歌单和设置目录。
+- 移除继承的页面百度统计脚本；公开提交排除真实账号数据、备份、日志、二维码、个人截图及环境凭据。
+- 保持原有应用 ID、包名和本地存储键，保留上游作者署名与第三方许可。
+
+## 0.1.1 验证
+
+- 生产构建通过；11 组离线回归共 151 项通过，其中 4 项新增的目录选择测试使用虚拟文件系统。
+- 编译后的主进程在首个 Store 构造前设置软件名和用户数据目录。
+- PNG、九尺寸 Windows ICO、十一表示 macOS ICNS 的格式、边界与图片尺寸核验通过；图标预览已检查。
+- 全量 Node 类型检查仍有 7 项既有诊断；没有据此声明真实账号恢复、实际播放或已安装卸载器内部界面通过验收。
 
 ## 本分支新增
 
@@ -15,7 +30,7 @@ Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-pla
 - Windows 任务栏上一首、播放 / 暂停、下一首、收藏四按钮；Windows x64 歌曲信息卡。首次提交等待实际任务栏就绪，减少冷启动按钮缺失。
 - 完善 README、开发与隐私文档，保留 MIT、上游致谢及第三方协议声明。
 
-## 发布验证
+## 0.1.0 源码准备时的验证基线
 
 - 生产构建通过。
 - `npm test`：10 组离线套件，共 147 项通过。

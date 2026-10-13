@@ -1,4 +1,4 @@
-// Render the authored splash-inspired vector with existing Sharp; no new dependencies.
+// Render every application-brand asset from the authored vector with existing Sharp.
 const fs = require('node:fs');
 const path = require('node:path');
 const sharp = require('sharp');
@@ -40,6 +40,41 @@ async function main() {
   const large = await sharp(svg).resize(512, 512).png().toBuffer();
   fs.writeFileSync(path.join(resources, 'icon.png'), large);
   fs.writeFileSync(path.join(root, 'src/renderer/assets/icon.png'), large);
+  fs.writeFileSync(path.join(root, 'src/renderer/assets/logo.png'), large);
+  fs.writeFileSync(
+    path.join(resources, 'icon_192x192.png'),
+    await sharp(svg).resize(192, 192).png().toBuffer()
+  );
+  // Modern macOS ICNS supports PNG chunks; keep standard @1x and @2x representations.
+  const icnsSizes = [
+    ['icp4', 16],
+    ['icp5', 32],
+    ['icp6', 64],
+    ['ic07', 128],
+    ['ic08', 256],
+    ['ic09', 512],
+    ['ic10', 1024],
+    ['ic11', 32],
+    ['ic12', 64],
+    ['ic13', 256],
+    ['ic14', 512]
+  ];
+  const icnsChunks = await Promise.all(
+    icnsSizes.map(async ([type, size]) => {
+      const png = await sharp(size <= 24 ? smallSvg : svg)
+        .resize(size, size)
+        .png()
+        .toBuffer();
+      const header = Buffer.alloc(8);
+      header.write(type, 0, 4, 'ascii');
+      header.writeUInt32BE(8 + png.length, 4);
+      return Buffer.concat([header, png]);
+    })
+  );
+  const icnsHeader = Buffer.alloc(8);
+  icnsHeader.write('icns', 0, 4, 'ascii');
+  icnsHeader.writeUInt32BE(8 + icnsChunks.reduce((total, chunk) => total + chunk.length, 0), 4);
+  fs.writeFileSync(path.join(resources, 'icon.icns'), Buffer.concat([icnsHeader, ...icnsChunks]));
   // A contact sheet at native small sizes and a large detail for visual inspection.
   const iconLarge = await sharp(svg).resize(192, 192).png().toBuffer();
   const composite = [{ input: iconLarge, left: 44, top: 44 }];
@@ -52,7 +87,9 @@ async function main() {
     .composite(composite)
     .png()
     .toFile(path.join(root, '../brand-icons-preview.png'));
-  console.log('Brand PNG, SVG and nine-size ICO generated with existing Sharp.');
+  console.log(
+    'Brand PNG, SVG, nine-size ICO and eleven-representation ICNS generated with existing Sharp.'
+  );
 }
 main().catch((error) => {
   console.error(error);

@@ -294,7 +294,7 @@ function createCard(
         native.DeleteObject(font);
       }
     };
-    drawText('ZEPHYRUS', 146, 26, 304, 12, 600, palette.green);
+    drawText('ALMUSIC', 146, 26, 304, 12, 600, palette.green);
     drawText(state.title || '还没有播放歌曲', 146, 68, 302, 23, 600, palette.dark);
     drawText(
       state.title ? state.artist || '未知歌手' : '选一首喜欢的音乐',

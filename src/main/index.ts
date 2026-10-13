@@ -1,11 +1,13 @@
+import './appIdentity';
+
 import { electronApp, optimizer } from '@electron-toolkit/utils';
 import { app, ipcMain, nativeImage, session } from 'electron';
 import { join } from 'path';
 
 import type { Language } from '../i18n/main';
 import i18n from '../i18n/main';
-import { loadLyricWindow } from './lyric';
 import { initializeKugou } from './kugou';
+import { loadLyricWindow } from './lyric';
 import { initializeCacheManager } from './modules/cache';
 import { initializeConfig } from './modules/config';
 import { initializeFileManager } from './modules/fileManager';

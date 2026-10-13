@@ -8,7 +8,7 @@
 
 **桌面音乐播放器 · 酷狗云端歌单同步 · 多音源播放 · 沉浸式歌词**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/mysterious-shhr/Almusic-player)
+[![Version](https://img.shields.io/badge/version-0.1.1-blue)](https://github.com/mysterious-shhr/Almusic-player)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Vue](https://img.shields.io/badge/Vue_3.5-42b883?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript_5.9-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -19,6 +19,8 @@
 ## 项目介绍
 
 Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-player) 继续开发；Zephyrus Player 又基于 [AlgerMusicPlayer](https://github.com/algerkong/AlgerMusicPlayer)。项目保留原有的网易云音乐、本地音乐、逐字歌词和多种全屏视觉，在此基础上增加酷狗账号扫码登录、云端歌单同步、收藏库管理、播放匹配与手动选版，以及 Windows 任务栏控制。
+
+项目名称为 **Almusic Player**，软件显示名称为 **Almusic**。0.1.1 源码统一窗口、托盘、开屏、移动页面、远程控制页面和新构建安装 / 卸载器的名称，并替换应用、更新对话框、浏览器 / PWA、Windows ICO 和 macOS ICNS 的品牌图标。已有安装器的内嵌安装脚本需重新打包才能更新。
 
 这个分支的重点是：把已经整理好的酷狗歌单带到桌面播放器中，保留来源歌曲信息，并在一个界面完成浏览、排序、搜索和播放。Almusic Player 是独立社区项目，与网易云、酷狗等音乐平台没有官方隶属关系。项目地址：[mysterious-shhr/Almusic-player](https://github.com/mysterious-shhr/Almusic-player)。
 
@@ -59,7 +61,7 @@ Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-pla
 
 - 侧栏悬停时展开导航与歌单名称，离开时收起；点击 Logo 可固定展开。
 - 唱片与风线开屏支持自动结束、跳过和 Esc，并遵循“关闭动效”及系统减少动态效果设置。
-- 统一侧栏、窗口、托盘和程序品牌图标。
+- 统一侧栏、窗口、托盘、更新 / 安装对话框、浏览器 / PWA、程序及安装 / 卸载器品牌图标；Windows 图标包含 16–256 像素尺寸，macOS 图标包含 16–1024 像素及高分辨率表示。
 - Windows 任务栏缩略图工具栏提供上一首、播放 / 暂停、下一首、收藏四个按钮，随当前歌曲和状态更新。
 - 等待 Windows 实际创建任务栏按钮后再提交工具栏，避免冷启动时过早提交导致按钮缺失。
 - Windows x64 可显示独立歌曲信息卡；原生预览不可用时回退到普通窗口预览。信息卡在现有主进程中绘制，不启动独立辅助进程，也不下载封面。
@@ -102,6 +104,8 @@ Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-pla
 - **平台范围。** 酷狗登录和同步依赖 Electron 桌面主进程，Web 模式不提供这部分能力。任务栏按钮限 Windows，独立信息卡限 Windows x64；macOS / Linux 保留上游构建入口，本分支新增能力尚未完成这些平台的实际验收。
 - **验证范围。** 0.1.0 发布准备时，`npm test` 的 10 组离线测试共 147 项通过，生产构建、5 组专项类型检查及 3 组 UI 回归通过。隔离测试及构建成功不能替代真实账号歌单核对、实际音频输出或 Windows 任务栏外观验收。全量 Node 类型检查仍有 7 项、Web 类型检查仍有 186 项既有诊断，不能将专项检查通过表述为全量检查通过。
 
+  0.1.1 更名维护已通过生产构建、11 组离线回归共 151 项和图标格式 / 尺寸核验；新增的 4 项回归使用虚拟目录检查已有用户数据的选择，全量 Node 类型检查仍为上述 7 项既有诊断。详见 [验证记录](docs/verification.md)。
+
 ## 隐私与本机数据
 
 新增酷狗凭据由 Electron 主进程管理，账号和歌单缓存使用系统支持的 `safeStorage` 加密。安全存储不可用时仅保存在本次运行内存中；Linux 的 `basic_text` 后端不被视为安全存储。
@@ -110,9 +114,11 @@ Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-pla
 
 播放回退会把歌名、歌手等搜索信息发送给对应音乐服务；社区功能、AI 分析和自定义音源也可能访问外部服务。详细的数据范围、保存方式及反馈时的脱敏建议见 [隐私说明](docs/privacy.md)。
 
+0.1.1 移除继承的页面百度统计脚本。新安装使用 `Almusic` 用户数据目录；已有 `Almusic` 目录时优先使用，否则发现原来的 `ZephyrusPlayer` 目录会沿用它，避免改名造成账号、歌单和设置丢失。改名不会复制账号文件到项目目录。公开源码应排除真实用户数据、日志、备份、二维码、个人截图及环境凭据，保留上游署名和许可证。
+
 ## 下载与开发
 
-**0.1.0 首次发布提供源码，暂无预编译安装包。** 源码与后续发布见 [GitHub 仓库](https://github.com/mysterious-shhr/Almusic-player) 和 [Releases](https://github.com/mysterious-shhr/Almusic-player/releases)。目前可按下面的命令运行或构建；上游安装包不包含本分支的新增功能。
+**当前源码版本为 0.1.1。** 文档和版本号不代表已上传 GitHub 或已生成安装包；请以 [GitHub 仓库](https://github.com/mysterious-shhr/Almusic-player) 和 [Releases](https://github.com/mysterious-shhr/Almusic-player/releases) 的实际内容为准。目前可按下面的命令运行或构建；上游安装包不包含本分支的新增功能。
 
 开发建议使用 Node.js 22 LTS（至少 22.12）；构建工具也支持 Node.js 20.19 及以上的 20.x 版本。
 
@@ -124,7 +130,7 @@ npm run dev          # Electron 桌面开发
 npm run dev:web      # Web 开发，需要单独配置音乐 API
 npm run build        # 构建主进程、预加载脚本和渲染进程
 npm run build:win    # Windows 安装包
-npm test             # 10 组离线回归
+npm test             # 11 组离线回归
 ```
 
 更多构建、模块说明与测试命令见 [DEV.md](DEV.md)，变更记录见 [CHANGELOG.md](CHANGELOG.md)，自定义音源说明见 [docs/custom-api-readme.md](docs/custom-api-readme.md)。

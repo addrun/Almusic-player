@@ -9,7 +9,7 @@
     >
       <!-- Logo / 样式切换 -->
       <div class="fs-header" @click="toggleExpand">
-        <img :src="icon" class="fs-logo" alt="Almusic Player" />
+        <img :src="icon" class="fs-logo" alt="Almusic" />
       </div>
 
       <!-- 菜单列表 -->

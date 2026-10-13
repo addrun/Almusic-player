@@ -266,7 +266,7 @@ export function createMainWindow(icon: Electron.NativeImage): BrowserWindow {
 
   // 添加图标和预加载脚本
   options.icon = icon;
-  options.title = 'Almusic Player';
+  options.title = 'Almusic';
   options.webPreferences = {
     preload: join(__dirname, '../preload/index.js'),
     sandbox: false,

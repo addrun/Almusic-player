@@ -10,7 +10,7 @@
       :class="{ 'tb-hidden': isHidden && isOverlayMode }"
       @mousedown="drag"
     >
-      <div id="title" :class="{ 'text-sm font-semibold opacity-60': isOverlayMode }">Almusic Player</div>
+      <div id="title" :class="{ 'text-sm font-semibold opacity-60': isOverlayMode }">Almusic</div>
       <div id="buttons">
         <n-button
           v-if="!isElectron"

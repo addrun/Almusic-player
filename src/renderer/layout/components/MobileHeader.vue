@@ -6,7 +6,7 @@
         <i class="ri-arrow-left-s-line"></i>
       </div>
       <div v-else class="header-logo">
-        <span class="logo-text">Almusic Player</span>
+        <span class="logo-text">Almusic</span>
       </div>
     </div>
 

@@ -12,7 +12,7 @@
           <img src="@/assets/logo.png" alt="App Icon" />
         </div>
         <div class="app-info">
-          <h2 class="app-name">Almusic Player {{ config.version }}</h2>
+          <h2 class="app-name">Almusic {{ config.version }}</h2>
           <p class="app-desc mb-2">{{ t('comp.installApp.description') }}</p>
           <n-checkbox v-model:checked="noPrompt">{{ t('comp.installApp.noPrompt') }}</n-checkbox>
         </div>

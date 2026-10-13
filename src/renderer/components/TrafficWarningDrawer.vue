@@ -9,7 +9,7 @@
     :mask-closable="false"
   >
     <n-drawer-content
-      title="欢迎使用 Almusic Player"
+      title="欢迎使用 Almusic"
       closable
       :native-scrollbar="false"
       class="mac-style-drawer"

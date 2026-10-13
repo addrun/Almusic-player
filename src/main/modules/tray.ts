@@ -410,7 +410,7 @@ export function initializeTray(iconPath: string, mainWindow: BrowserWindow) {
   tray = new Tray(trayIcon);
 
   // 设置托盘图标的提示文字
-  tray.setToolTip('Almusic Player');
+  tray.setToolTip('Almusic');
 
   // 初始化菜单
   updateTrayMenu(mainWindow);

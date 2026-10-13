@@ -320,7 +320,7 @@ export const usePlayerCoreStore = defineStore(
           ''
         )}`;
       }
-      document.title = 'Almusic Player - ' + title;
+      document.title = 'Almusic - ' + title;
 
       try {
         // 添加到历史记录

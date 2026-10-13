@@ -7,7 +7,7 @@
     <div class="app-menu" :class="{ 'app-menu-expanded': isExpanded }">
       <div class="app-menu-header">
         <div class="app-menu-logo" @click="toggleMenu">
-          <img :src="icon" class="w-9 h-9" alt="Almusic Player" />
+          <img :src="icon" class="w-9 h-9" alt="Almusic" />
         </div>
       </div>
       <div class="app-menu-list">

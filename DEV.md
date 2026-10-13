@@ -2,6 +2,8 @@
 
 项目来源与用户功能见 [README.md](README.md)，数据说明见 [docs/privacy.md](docs/privacy.md)。本仓库包含从 Zephyrus Player / AlgerMusicPlayer 继承的代码和本分支的酷狗、收藏、界面及任务栏改动。
 
+项目名称为 Almusic Player，软件显示名为 Almusic。0.1.1 的更名保持 `almusic-player` 包名、`com.almusic.player` 应用 ID、既有本地存储键和上游作者署名。
+
 ## 环境与运行
 
 - 建议使用 Node.js 22 LTS，至少 22.12。
@@ -51,6 +53,10 @@ resources/                          # 图标、桌面资源及原生组件
 docs/                               # 使用说明与第三方许可
 ```
 
+`src/main/appIdentity.ts` 必须作为主进程入口的首个副作用导入，在其他模块创建 `electron-store` 或 Chromium 会话前设置软件名和用户数据目录。优先已有 Almusic 目录，否则沿用已有 ZephyrusPlayer 目录；新安装创建 Almusic 目录。不复制、迁移或公开用户数据。
+
+品牌原稿为 `src/renderer/assets/brand-logo.svg`。运行 `node scripts/build-brand-icons.cjs`，使用已有 Sharp 生成应用 PNG、`logo.png`、favicon、9 个尺寸的 Windows ICO、11 个表示的 macOS ICNS 和 PWA 图标。安装与卸载图标共用 `resources/icon.ico`；不要仅替换侧栏而遗漏系统与更新界面。
+
 ## 酷狗数据流程
 
 渲染页面通过预加载桥接调用受限 IPC；主进程完成官方 HTTPS 请求、凭据管理和分页同步，只向页面返回所需的数据投影。IPC 验证调用窗口、主框架来源及参数，新模块不提供修改酷狗云端歌单的接口。
@@ -97,13 +103,13 @@ macOS / Linux 构建入口存在不代表本分支新增功能已经在相应系
 
 ## 隔离回归
 
-安装依赖后，运行全部 10 组离线套件：
+安装依赖后，运行全部 11 组离线套件：
 
 ```bash
 npm test
 ```
 
-0.1.0 发布准备时共 147 项通过。也可分别执行：
+0.1.0 发布准备时共 147 项通过；0.1.1 加入 4 项虚拟目录选择回归，共 151 项通过。也可分别执行：
 
 ```bash
 node scripts/test-kugou.mjs
@@ -133,10 +139,12 @@ npx --no-install tsc --noEmit -p tests/tsconfig.taskbar.json
 
 ## 发布维护
 
-当前版本为 0.1.0，仓库为 [mysterious-shhr/Almusic-player](https://github.com/mysterious-shhr/Almusic-player)。首次发布仅提供源码，暂无预编译安装包，也没有配置自动发布工作流。
+当前源码版本为 0.1.1，仓库目标为 [mysterious-shhr/Almusic-player](https://github.com/mysterious-shhr/Almusic-player)。版本号与发布说明只描述源码准备结果，不能据此判断 GitHub 同步或安装包已完成；实际状态以仓库和 Releases 为准。当前没有配置自动发布工作流。
 
 发布前核对应用名、版本、打包目标和更新源是否属于本仓库；原项目的安装包与发布地址不能当作本分支产物。安装包发布需要实际构建并核对内容、架构及运行结果，再上传到本仓库的 Releases。
 
 公开提交应只包含源码、依赖锁文件、必要资源、文档和脱敏测试夹具。排除安装目录、备份、账号缓存、日志、带个人信息的截图、环境文件和临时构建产物。不要把一次本机测试使用的路径或个人歌单链接写入 README、示例或 issue。
+
+0.1.1 已移除继承的页面百度统计脚本；其余音乐、社区、字体、AI、更新和插件网络请求需继续按隐私说明核对。对更名做回归时使用虚构路径与隔离的 Electron / 文件系统夹具，不能读取真实账号目录。
 
 保留 [LICENSE](LICENSE)、上游致谢和 [酷狗协议参考许可](src/main/kugou/NOTICE.md)。新增第三方资源时同时记录来源与许可证。

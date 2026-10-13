@@ -1,7 +1,7 @@
 {
   "name": "almusic-player",
-  "version": "0.1.0",
-  "description": "Almusic Player — desktop music player with Kugou sync and Windows taskbar controls",
+  "version": "0.1.1",
+  "description": "Almusic — desktop music player with Kugou sync and Windows taskbar controls",
   "author": "Almusic Player contributors",
   "main": "./out/main/index.js",
   "homepage": "https://github.com/mysterious-shhr/Almusic-player",
@@ -131,7 +131,7 @@
   },
   "build": {
     "appId": "com.almusic.player",
-    "productName": "Almusic Player",
+    "productName": "Almusic",
     "publish": [
       {
         "provider": "github",
@@ -154,14 +154,14 @@
         "dmg",
         "zip"
       ],
-      "artifactName": "AlmusicPlayer-${version}-mac-${arch}.${ext}",
+      "artifactName": "Almusic-${version}-mac-${arch}.${ext}",
       "darkModeSupport": true,
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Almusic Player needs access to the microphone for audio visualization.",
+        "NSMicrophoneUsageDescription": "Almusic needs access to the microphone for audio visualization.",
         "NSCameraUsageDescription": "Application requests access to the device's camera.",
         "NSDocumentsFolderUsageDescription": "Application requests access to the user's Documents folder.",
         "NSDownloadsFolderUsageDescription": "Application requests access to the user's Downloads folder."
@@ -182,7 +182,7 @@
           ]
         }
       ],
-      "artifactName": "AlmusicPlayer-${version}-win-${arch}.${ext}",
+      "artifactName": "Almusic-${version}-win-${arch}.${ext}",
       "requestedExecutionLevel": "asInvoker"
     },
     "linux": {
@@ -210,7 +210,7 @@
           ]
         }
       ],
-      "artifactName": "AlmusicPlayer-${version}-linux-${arch}.${ext}",
+      "artifactName": "Almusic-${version}-linux-${arch}.${ext}",
       "category": "Audio",
       "maintainer": "Almusic Player contributors <141168900+mysterious-shhr@users.noreply.github.com>"
     },
@@ -221,9 +221,9 @@
       "uninstallerIcon": "resources/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Almusic Player",
+      "shortcutName": "Almusic",
       "deleteAppDataOnUninstall": false,
-      "uninstallDisplayName": "Almusic Player"
+      "uninstallDisplayName": "Almusic"
     },
     "files": [
       "out/**/*",

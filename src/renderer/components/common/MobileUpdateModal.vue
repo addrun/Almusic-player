@@ -168,7 +168,7 @@ const handleUpdate = async () => {
   const version = updateInfo.value.latestVersion;
 
   // Android APK 下载地址
-  const downloadUrl = `https://github.com/mysterious-shhr/Almusic-player/releases/download/v${version}/AlmusicPlayer-${version}.apk`;
+  const downloadUrl = `https://github.com/mysterious-shhr/Almusic-player/releases/download/v${version}/Almusic-${version}.apk`;
 
   try {
     // 获取代理节点
