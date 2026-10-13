@@ -35,11 +35,17 @@ export function parseUpdateInfo(text) {
   return result;
 }
 
-function identify(platform, arch, version) {
+export function identify(platform, arch, version) {
   if (!targets.some(([p, a]) => p === platform && a === arch)) throw new Error('Unsupported build target');
   const prefix = `Almusic-${version}-${platform === 'windows' ? 'win' : platform}-${arch}`;
   const extensions = platform === 'windows' ? ['exe'] : platform === 'mac' ? ['dmg', 'zip'] : ['AppImage', 'deb', 'rpm'];
-  const installers = extensions.map((ext) => `${prefix}.${ext}`);
+  const installers = extensions.map((ext) => {
+    // electron-builder uses distribution architecture names in Linux artifacts.
+    const artifactArch = platform !== 'linux' ? arch : arch === 'x64'
+      ? (ext === 'deb' ? 'amd64' : 'x86_64')
+      : (ext === 'rpm' ? 'aarch64' : arch);
+    return platform === 'linux' ? `Almusic-${version}-linux-${artifactArch}.${ext}` : `${prefix}.${ext}`;
+  });
   const channel = platform === 'windows' ? 'latest.yml' : platform === 'mac' ? 'latest-mac.yml' : `latest-linux${arch === 'x64' ? '' : '-arm64'}.yml`;
   const stagedChannel = platform === 'windows' ? `latest-win-${arch}.yml` : platform === 'mac' ? `latest-mac-${arch}.yml` : channel;
   return { installers, channel, stagedChannel, id: `${platform}-${arch}` };
