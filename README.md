@@ -8,7 +8,7 @@
 
 **桌面音乐播放器 · 酷狗云端歌单同步 · 多音源播放 · 沉浸式歌词**
 
-[![Version](https://img.shields.io/badge/version-0.1.4-blue)](https://github.com/mysterious-shhr/Almusic-player/releases)
+[![Version](https://img.shields.io/badge/version-0.1.5-blue)](https://github.com/mysterious-shhr/Almusic-player/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Vue](https://img.shields.io/badge/Vue_3.5-42b883?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript_5.9-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -118,13 +118,13 @@ Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-pla
 
 ## 下载与开发
 
-**当前版本为 0.1.4。** 从 [Releases](https://github.com/mysterious-shhr/Almusic-player/releases) 的 Assets 下载对应系统的 Almusic 安装包。发布流程在 Windows、macOS 和 Linux 构建环境生成安装包，检查应用资源的隐私与更新清单，再汇总发布；某个标签是否已完成构建，以该 Release 实际列出的文件及 [构建记录](https://github.com/mysterious-shhr/Almusic-player/actions/workflows/release.yml) 为准。
+**当前源码版本为 0.1.5。** 从 [Releases](https://github.com/mysterious-shhr/Almusic-player/releases) 的 Assets 下载对应系统的 Almusic 安装包。发布流程在 Windows、macOS 和 Linux 构建环境生成安装包，检查应用资源的隐私与更新清单，再汇总发布；某个标签是否已完成构建，以该 Release 实际列出的文件及 [构建记录](https://github.com/mysterious-shhr/Almusic-player/actions/workflows/release.yml) 为准。
 
-`main` 分支另有尚未发布的米白色大图标、Windows 固定任务栏 / 托盘图标和更新安装目录修复，详见 [更新日志](CHANGELOG.md)。现有 v0.1.4 安装包不包含这些改动。源码中手动安装器保留安装目录选择；应用内更新沿用当前程序目录，下载后须明确点击安装。
+0.1.5 包含米白色大图标、Windows 固定任务栏 / 托盘图标和更新安装目录修复，详见 [更新日志](CHANGELOG.md)。Windows 手动安装器提供安装目录选择；0.1.5 应用内后续更新沿用当前程序目录，下载后须明确点击安装。此前版本的更新器行为不受新安装包反向修改，需要选择目录时可下载新安装器手动更新。
 
 | 系统 | 架构 | 下载文件 |
 | --- | --- | --- |
-| Windows | x64（大多数 Intel / AMD 电脑） | `Almusic-0.1.4-win-x64.exe` |
+| Windows | x64（大多数 Intel / AMD 电脑） | `Almusic-0.1.5-win-x64.exe` |
 | Windows | ia32（32 位） / ARM64 | 对应 `win-ia32.exe` / `win-arm64.exe` |
 | macOS | Intel x64 / Apple Silicon ARM64 | 对应 `mac-x64.dmg` / `mac-arm64.dmg`，也提供 ZIP |
 | Linux | x64 / ARM64 | 对应架构的 `.AppImage`、`.deb` 或 `.rpm` |

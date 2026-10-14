@@ -1,6 +1,6 @@
 {
   "name": "almusic-player",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Almusic — desktop music player with Kugou sync and Windows taskbar controls",
   "author": "Almusic Player contributors",
   "main": "./out/main/index.js",
