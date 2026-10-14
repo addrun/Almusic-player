@@ -141,6 +141,10 @@
     ],
     "extraResources": [
       {
+        "from": "resources/app-icon-light-v2.ico",
+        "to": "app-icon-light-v2.ico"
+      },
+      {
         "from": "resources/html",
         "to": "html",
         "filter": [

@@ -19,6 +19,7 @@ import { initializeOtherApi } from './modules/otherApi';
 import { initializePluginManager } from './modules/pluginManager';
 import { initializeRemoteControl } from './modules/remoteControl';
 import { initializeShortcuts } from './modules/shortcuts';
+import { WINDOWS_APP_ID } from './modules/taskbarIdentity';
 import { initializeTray, updateCurrentSong, updatePlayState, updateTrayMenu } from './modules/tray';
 import { setupUpdateHandlers } from './modules/update';
 import { createMainWindow, initializeWindowManager, setAppQuitting } from './modules/window';
@@ -128,7 +129,7 @@ if (!isSingleInstance) {
   // 应用程序准备就绪时的处理
   app.whenReady().then(() => {
     // 设置应用ID
-    electronApp.setAppUserModelId('mysterious-shhr.AlmusicPlayer');
+    electronApp.setAppUserModelId(WINDOWS_APP_ID);
 
     // 防止网络服务崩溃导致闪退
     app.on('child-process-gone', (_event, details) => {

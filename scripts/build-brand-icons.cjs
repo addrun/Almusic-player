@@ -5,8 +5,9 @@ const sharp = require('sharp');
 const root = path.resolve(__dirname, '..');
 const resources = path.join(root, 'resources');
 const svg = fs.readFileSync(path.join(root, 'src/renderer/assets/brand-logo.svg'));
+// Keep a simplified enlarged shape legible in the smallest native icon sizes.
 const smallSvg = Buffer.from(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none"><rect x="1" y="1" width="62" height="62" rx="15" fill="#F5F3EC"/><circle cx="35" cy="30" r="18" stroke="#737D61" stroke-width="3" opacity=".65"/><circle cx="35" cy="30" r="3" fill="#626E51"/><path d="M9 35H22C29 35 31 32 34 27C37 22 40 21 46 21H55" stroke="#626E51" stroke-width="4.5" stroke-linecap="round"/><path d="M14 46H25C33 46 37 41 40 36C42 33 45 32 50 32" stroke="#626E51" stroke-width="3" stroke-linecap="round" opacity=".7"/></svg>`
+  `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none"><rect width="64" height="64" rx="12" fill="#F5F3EC"/><rect x=".75" y=".75" width="62.5" height="62.5" rx="11.25" stroke="#737D61" stroke-opacity=".24" stroke-width="1.5"/><circle cx="35" cy="28" r="18" stroke="#737D61" stroke-width="2.4" stroke-opacity=".7"/><circle cx="35" cy="28" r="12" stroke="#737D61" stroke-width="1.8" stroke-opacity=".35"/><circle cx="35" cy="28" r="2.5" fill="#626E51"/><path d="M7 34H22C29 34 32 30 36 25C39 21 42 20 48 20H58" stroke="#626E51" stroke-width="3.4" stroke-linecap="round"/><path d="M12 45H25C33 45 38 39 42 34C44 32 47 31 54 31" stroke="#626E51" stroke-width="2" stroke-linecap="round" stroke-opacity=".65"/></svg>`
 );
 async function main() {
   const sizes = [16, 20, 24, 32, 40, 48, 64, 128, 256];
@@ -36,6 +37,9 @@ async function main() {
   fs.writeFileSync(path.join(resources, 'icon.ico'), ico);
   fs.writeFileSync(path.join(resources, 'favicon.ico'), ico);
   fs.writeFileSync(path.join(resources, 'icon_16x16.png'), pngs[0]);
+  fs.writeFileSync(path.join(resources, 'icon_24x24.png'), pngs[2]);
+  fs.writeFileSync(path.join(resources, 'icon_32x32.png'), pngs[3]);
+  fs.writeFileSync(path.join(resources, 'app-icon-light-v2.ico'), ico);
   fs.writeFileSync(path.join(resources, 'brand-logo.svg'), svg);
   const large = await sharp(svg).resize(512, 512).png().toBuffer();
   fs.writeFileSync(path.join(resources, 'icon.png'), large);

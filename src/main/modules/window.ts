@@ -4,6 +4,7 @@ import Store from 'electron-store';
 import { join } from 'path';
 
 import { initializeTaskbar } from './taskbar';
+import { applyTaskbarIdentity } from './taskbarIdentity';
 import {
   applyContentZoom,
   applyInitialState,
@@ -276,6 +277,9 @@ export function createMainWindow(icon: Electron.NativeImage): BrowserWindow {
 
   // 创建窗口
   const mainWindow = new BrowserWindow(options);
+  if (app.isPackaged) {
+    applyTaskbarIdentity(mainWindow, process.platform, app.getPath('exe'), process.resourcesPath);
+  }
   mainWindowInstance = mainWindow;
   initializeTaskbar(mainWindow);
   mainWindow.once('closed', () => {

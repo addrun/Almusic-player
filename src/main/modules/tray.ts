@@ -12,6 +12,7 @@ import { join } from 'path';
 import i18n from '../../i18n/main';
 import { getLanguageOptions } from '../../i18n/utils';
 import { getStore } from './config';
+import { WINDOWS_ICON_NAME } from './taskbarIdentity';
 
 // 歌曲信息接口定义
 interface SongInfo {
@@ -407,7 +408,12 @@ export function initializeTray(iconPath: string, mainWindow: BrowserWindow) {
     .createFromPath(join(iconPath, iconFile))
     .resize({ width: iconSize, height: iconSize });
 
-  tray = new Tray(trayIcon);
+  // Windows chooses the proper native ICO frame at the current display scale.
+  tray = new Tray(
+    process.platform === 'win32' && app.isPackaged
+      ? join(process.resourcesPath, WINDOWS_ICON_NAME)
+      : trayIcon
+  );
 
   // 设置托盘图标的提示文字
   tray.setToolTip('Almusic');

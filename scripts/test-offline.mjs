@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const suites = [
   'test-app-identity.mjs',
+  'test-taskbar-identity.mjs',
+  'test-update-install.mjs',
   'test-kugou.mjs',
   'test-kugou-catalogue.mjs',
   'test-kugou-playback-parser.mjs',

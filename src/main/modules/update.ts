@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import electronUpdater, {
+  type NsisUpdater,
   type ProgressInfo,
   type UpdateDownloadedEvent,
   type UpdateInfo
@@ -11,6 +12,7 @@ import {
   type AppUpdateState,
   createDefaultAppUpdateState
 } from '../../shared/appUpdate';
+import { configureUpdateInstall, getUpdateInstallError } from './updateInstall';
 
 const { autoUpdater } = electronUpdater;
 
@@ -212,7 +214,12 @@ export function setupUpdateHandlers(mainWindow: BrowserWindow) {
   resetUpdateState();
 
   autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = true;
+  configureUpdateInstall(
+    autoUpdater as NsisUpdater,
+    process.platform,
+    app.isPackaged,
+    app.getPath('exe')
+  );
 
   autoUpdater.on('checking-for-update', () => {
     setUpdateState({
@@ -282,6 +289,16 @@ export function setupUpdateHandlers(mainWindow: BrowserWindow) {
   });
 
   ipcMain.handle('app-update:quit-and-install', async () => {
+    if (updateState.status !== APP_UPDATE_STATUS.downloaded) return false;
+    const errorMessage = getUpdateInstallError(
+      process.platform,
+      app.isPackaged,
+      app.getPath('exe')
+    );
+    if (errorMessage) {
+      setUpdateState({ status: APP_UPDATE_STATUS.error, errorMessage });
+      return false;
+    }
     autoUpdater.quitAndInstall(false, true);
     return true;
   });
