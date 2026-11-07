@@ -18,7 +18,7 @@
 
 ## 项目介绍
 
-Almusic Player 基于 [Zephyrus Player](https://github.com/cang-dot/zephyrus-player) 继续开发；Zephyrus Player 又基于 [AlgerMusicPlayer](https://github.com/algerkong/AlgerMusicPlayer)。项目保留原有的网易云音乐、本地音乐、逐字歌词和多种全屏视觉，在此基础上增加酷狗账号扫码登录、云端歌单同步、收藏库管理、播放匹配与手动选版，以及 Windows 任务栏控制。
+Almusic Player 基于 [AlgerMusicPlayer](https://github.com/algerkong/AlgerMusicPlayer) 继续开发。项目保留原有的网易云音乐、本地音乐、逐字歌词和多种全屏视觉，在此基础上增加酷狗账号扫码登录、云端歌单同步、收藏库管理、播放匹配与手动选版，以及 Windows 任务栏控制。
 
 项目名称为 **Almusic Player**，软件显示名称为 **Almusic**。0.1.1 源码统一窗口、托盘、开屏、移动页面、远程控制页面和新构建安装 / 卸载器的名称，并替换应用、更新对话框、浏览器 / PWA、Windows ICO 和 macOS ICNS 的品牌图标。已有安装器的内嵌安装脚本需重新打包才能更新。
 
